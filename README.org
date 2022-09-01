@@ -1,0 +1,8 @@
+#+title: Conway's Game of Life
+#+author: sndb
+
+[[file:life.gif][Preview]]
+
+Requirements: =raylib=
+
+Compilation: ~./build.sh~
