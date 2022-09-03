@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -13,6 +14,7 @@
 #define CELL_WIDTH 3
 #define CELL_HEIGHT 3
 #define CELL_COLOR YELLOW
+#define CELL_TRAIL_COLOR BLUE
 #define CELL_BORDER_COLOR Fade(BLACK, 0.75)
 #define PADDING 10
 #define PADDING_COLOR DARKGRAY
@@ -48,9 +50,19 @@ typedef struct {
   Color borderColor;
 } DrawOptions;
 
+typedef struct {
+  bool paused;
+  bool drawFPS;
+  bool drawCellBorders;
+  bool drawPreviousState;
+  int numberOfCells;
+  bool countCells;
+} Status;
+
 /* headers */
 void drawState(State *s, DrawOptions o);
 void drawBackground();
+void drawStatus(Status s);
 Cell inactiveCell();
 Cell activeCell();
 void updateState(State *s);
@@ -59,6 +71,7 @@ void randomizeState(State *s);
 void clearState(State *s);
 void activateCell(State *s, int x, int y);
 void disableCell(State *s, int x, int y);
+int countCells(State *s);
 bool validLocation(int x, int y);
 int neighbors(State *s, int i, int j);
 bool isExitKeyPressed();
@@ -86,15 +99,44 @@ void drawBackground() {
   DrawRectangleRec(screen, BACKGROUND_COLOR);
 }
 
-Cell inactiveCell() {
-  Cell c = {false};
-  return c;
+void drawStatus(Status s) {
+  const int fontSize = PADDING;
+  const int spacing = PADDING;
+  int offset = PADDING;
+  if (s.paused) {
+    const char *paused = "PAUSED";
+    DrawText(paused, offset, 0, fontSize, YELLOW);
+    offset += spacing + MeasureText(paused, fontSize);
+  }
+  if (s.drawFPS) {
+    const int fpsLen = 32;
+    char fps[fpsLen];
+    snprintf(fps, fpsLen, "FPS: %d", GetFPS());
+    DrawText(fps, offset, 0, fontSize, GREEN);
+    offset += spacing + MeasureText(fps, fontSize);
+  }
+  if (s.drawCellBorders) {
+    const char *borders = "BORDERS";
+    DrawText(borders, offset, 0, fontSize, RAYWHITE);
+    offset += spacing + MeasureText(borders, fontSize);
+  }
+  if (s.drawPreviousState) {
+    const char *prevState = "TRAIL";
+    DrawText(prevState, offset, 0, fontSize, CELL_TRAIL_COLOR);
+    offset += spacing + MeasureText(prevState, fontSize);
+  }
+  if (s.countCells) {
+    const int nCellsLen = 32;
+    char nCells[nCellsLen];
+    snprintf(nCells, nCellsLen, "CELLS: %d", s.numberOfCells);
+    DrawText(nCells, offset, 0, fontSize, CELL_COLOR);
+    offset += spacing + MeasureText(nCells, fontSize);
+  }
 }
 
-Cell activeCell() {
-  Cell c = {true};
-  return c;
-}
+Cell inactiveCell() { return (Cell){.active = false}; }
+
+Cell activeCell() { return (Cell){.active = true}; }
 
 State *create_state() {
   State *s = malloc(sizeof(State));
@@ -158,6 +200,18 @@ void disableCell(State *s, int x, int y) {
   }
 }
 
+int countCells(State *s) {
+  int c = 0;
+  for (int x = 0; x < MAX_X; x++) {
+    for (int y = 0; y < MAX_Y; y++) {
+      if (s->cells[x][y].active) {
+        c++;
+      }
+    }
+  }
+  return c;
+}
+
 bool validLocation(int x, int y) {
   return x >= 0 && x < MAX_X && y >= 0 && y < MAX_Y;
 }
@@ -197,9 +251,14 @@ int main(void) {
   const int screenWidth = MAX_X * CELL_WIDTH + 2 * PADDING;
   const int screenHeight = MAX_Y * CELL_HEIGHT + 2 * PADDING;
   State *s = create_state();
-  bool borders = false;
-  bool paused = false;
-  bool drawPreviousState = false;
+  Status t = (Status){
+      .paused = false,
+      .drawFPS = false,
+      .drawCellBorders = false,
+      .drawPreviousState = false,
+      .numberOfCells = 0,
+      .countCells = true,
+  };
   int fps = FPS;
 
   InitWindow(screenWidth, screenHeight, TITLE);
@@ -213,15 +272,21 @@ int main(void) {
       break;
     }
 
-    /* options */
-    if (IsKeyPressed(KEY_B)) {
-      borders = !borders;
-    }
+    /* status */
     if (IsKeyPressed(KEY_ESCAPE)) {
-      paused = !paused;
+      t.paused = !t.paused;
     }
-    if (IsKeyPressed(KEY_APOSTROPHE)) {
-      drawPreviousState = !drawPreviousState;
+    if (IsKeyPressed(KEY_F)) {
+      t.drawFPS = !t.drawFPS;
+    }
+    if (IsKeyPressed(KEY_B)) {
+      t.drawCellBorders = !t.drawCellBorders;
+    }
+    if (IsKeyPressed(KEY_T)) {
+      t.drawPreviousState = !t.drawPreviousState;
+    }
+    if (IsKeyPressed(KEY_C)) {
+      t.countCells = !t.countCells;
     }
 
     /* state */
@@ -259,20 +324,24 @@ int main(void) {
 
     /* rendering */
     drawBackground();
-    if (drawPreviousState) {
+    drawStatus(t);
+    if (t.drawPreviousState) {
       drawState(s, (DrawOptions){
-                       .color = BLUE,
+                       .color = CELL_TRAIL_COLOR,
                        .borderColor = CELL_BORDER_COLOR,
-                       .borders = borders,
+                       .borders = t.drawCellBorders,
                    });
     }
-    if (!paused) {
+    if (!t.paused) {
       updateState(s);
+    }
+    if (t.countCells) {
+      t.numberOfCells = countCells(s);
     }
     drawState(s, (DrawOptions){
                      .color = CELL_COLOR,
                      .borderColor = CELL_BORDER_COLOR,
-                     .borders = borders,
+                     .borders = t.drawCellBorders,
                  });
 
     EndDrawing();
