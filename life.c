@@ -15,7 +15,7 @@
 #define CELL_HEIGHT 3
 #define CELL_COLOR YELLOW
 #define CELL_TRAIL_COLOR BLUE
-#define CELL_BORDER_COLOR Fade(BLACK, 0.75)
+#define CELL_OUTLINE_COLOR Fade(BLACK, 0.75)
 #define PADDING 10
 #define PADDING_COLOR DARKGRAY
 #define BACKGROUND_COLOR BLACK
@@ -45,16 +45,17 @@ typedef struct {
 } State;
 
 typedef struct {
-  bool borders;
   Color color;
-  Color borderColor;
+  Color outlineColor;
+  bool drawOutline;
 } DrawOptions;
 
 typedef struct {
   bool paused;
+  int targetFPS;
   bool drawFPS;
-  bool drawCellBorders;
-  bool drawPreviousState;
+  bool drawOutline;
+  bool drawTrail;
   int numberOfCells;
   bool countCells;
 } Status;
@@ -86,8 +87,8 @@ void drawState(State *s, DrawOptions o) {
       Rectangle rec = {xOffset, yOffset, CELL_WIDTH, CELL_HEIGHT};
       if (s->cells[x][y].active) {
         DrawRectangleRec(rec, o.color);
-        if (o.borders) {
-          DrawRectangleLinesEx(rec, 1, o.borderColor);
+        if (o.drawOutline) {
+          DrawRectangleLinesEx(rec, 1, o.outlineColor);
         }
       }
     }
@@ -111,19 +112,19 @@ void drawStatus(Status s) {
   if (s.drawFPS) {
     const int fpsLen = 32;
     char fps[fpsLen];
-    snprintf(fps, fpsLen, "FPS: %d", GetFPS());
+    snprintf(fps, fpsLen, "FPS: %d (%d)", GetFPS(), s.targetFPS);
     DrawText(fps, offset, 0, fontSize, GREEN);
     offset += spacing + MeasureText(fps, fontSize);
   }
-  if (s.drawCellBorders) {
-    const char *borders = "BORDERS";
-    DrawText(borders, offset, 0, fontSize, RAYWHITE);
-    offset += spacing + MeasureText(borders, fontSize);
+  if (s.drawOutline) {
+    const char *outline = "OUTLINE";
+    DrawText(outline, offset, 0, fontSize, RAYWHITE);
+    offset += spacing + MeasureText(outline, fontSize);
   }
-  if (s.drawPreviousState) {
-    const char *prevState = "TRAIL";
-    DrawText(prevState, offset, 0, fontSize, CELL_TRAIL_COLOR);
-    offset += spacing + MeasureText(prevState, fontSize);
+  if (s.drawTrail) {
+    const char *trail = "TRAIL";
+    DrawText(trail, offset, 0, fontSize, CELL_TRAIL_COLOR);
+    offset += spacing + MeasureText(trail, fontSize);
   }
   if (s.countCells) {
     const int nCellsLen = 32;
@@ -253,16 +254,16 @@ int main(void) {
   State *s = create_state();
   Status t = (Status){
       .paused = false,
+      .targetFPS = FPS,
       .drawFPS = false,
-      .drawCellBorders = false,
-      .drawPreviousState = false,
+      .drawOutline = false,
+      .drawTrail = false,
       .numberOfCells = 0,
       .countCells = true,
   };
-  int fps = FPS;
 
   InitWindow(screenWidth, screenHeight, TITLE);
-  SetTargetFPS(fps);
+  SetTargetFPS(t.targetFPS);
   SetExitKey(KEY_NULL);
 
   while (!WindowShouldClose()) {
@@ -279,11 +280,11 @@ int main(void) {
     if (IsKeyPressed(KEY_F)) {
       t.drawFPS = !t.drawFPS;
     }
-    if (IsKeyPressed(KEY_B)) {
-      t.drawCellBorders = !t.drawCellBorders;
+    if (IsKeyPressed(KEY_O)) {
+      t.drawOutline = !t.drawOutline;
     }
     if (IsKeyPressed(KEY_T)) {
-      t.drawPreviousState = !t.drawPreviousState;
+      t.drawTrail = !t.drawTrail;
     }
     if (IsKeyPressed(KEY_C)) {
       t.countCells = !t.countCells;
@@ -302,15 +303,15 @@ int main(void) {
 
     /* fps */
     if (IsKeyPressed(KEY_EQUAL)) {
-      fps += FPS_INCREMENT;
-      SetTargetFPS(fps);
+      t.targetFPS += FPS_INCREMENT;
+      SetTargetFPS(t.targetFPS);
     }
     if (IsKeyPressed(KEY_MINUS)) {
-      fps -= FPS_INCREMENT;
-      if (fps < MIN_FPS) {
-        fps = MIN_FPS;
+      t.targetFPS -= FPS_INCREMENT;
+      if (t.targetFPS < MIN_FPS) {
+        t.targetFPS = MIN_FPS;
       }
-      SetTargetFPS(fps);
+      SetTargetFPS(t.targetFPS);
     }
 
     /* drawing */
@@ -325,11 +326,11 @@ int main(void) {
     /* rendering */
     drawBackground();
     drawStatus(t);
-    if (t.drawPreviousState) {
+    if (t.drawTrail) {
       drawState(s, (DrawOptions){
                        .color = CELL_TRAIL_COLOR,
-                       .borderColor = CELL_BORDER_COLOR,
-                       .borders = t.drawCellBorders,
+                       .outlineColor = CELL_OUTLINE_COLOR,
+                       .drawOutline = t.drawOutline,
                    });
     }
     if (!t.paused) {
@@ -340,8 +341,8 @@ int main(void) {
     }
     drawState(s, (DrawOptions){
                      .color = CELL_COLOR,
-                     .borderColor = CELL_BORDER_COLOR,
-                     .borders = t.drawCellBorders,
+                     .outlineColor = CELL_OUTLINE_COLOR,
+                     .drawOutline = t.drawOutline,
                  });
 
     EndDrawing();
