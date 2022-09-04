@@ -1,48 +1,54 @@
+#include <assert.h>
+#include <ctype.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include "config.h"
 #include "raylib.h"
 
-/* constants */
-#define TITLE "Conway's Game of Life"
-#define FPS 30
-#define FPS_INCREMENT 10
-#define MIN_FPS 10
-#define MAX_X (int)(1280 / CELL_WIDTH)
-#define MAX_Y (int)(720 / CELL_HEIGHT)
-#define CELL_WIDTH 3
-#define CELL_HEIGHT 3
-#define CELL_COLOR YELLOW
-#define CELL_TRAIL_COLOR BLUE
-#define CELL_OUTLINE_COLOR Fade(BLACK, 0.75)
-#define PADDING 10
-#define PADDING_COLOR DARKGRAY
-#define BACKGROUND_COLOR BLACK
-#define PERMUTATIONS 1000
-
-/* globals */
-static KeyboardKey exitKeys[] = {KEY_Q};
-static Rectangle screen = {
-    .x = PADDING,
-    .y = PADDING,
-    .width = MAX_X * CELL_WIDTH,
-    .height = MAX_Y * CELL_HEIGHT,
+/* variables */
+static const int maxX = screenWidth / cellWidth;
+static const int maxY = screenHeight / cellHeight;
+static const int permutations = 1000;
+static const int ruleStopper = -1;
+static const Rectangle field = {
+    .x = padding,
+    .y = padding,
+    .width = maxX * cellWidth,
+    .height = maxY * cellHeight,
 };
+static const char *rulesData[] = {
+    "B1357/S1357",  "B2/S",         "B3/S012345678", "B3/S23",
+    "B34/S34",      "B35678/S5678", "B36/S125",      "B36/S23",
+    "B3678/S34678", "B368/S245",    "B4678/S35678",
+};
+static const int nRules = sizeof(rulesData) / sizeof(*rulesData);
 
 /* types */
+typedef enum {
+  Replicator,
+  Seeds,
+  LifeWithoutDeath,
+  Life,
+  ThirtyFourLife,
+  Diamoeba,
+  TwoXTwo,
+  HighLife,
+  DayAndNight,
+  Morley,
+  Anneal,
+} RuleName;
+
 typedef struct {
   int x;
   int y;
 } Position;
 
-typedef struct {
-  bool active;
-} Cell;
+typedef bool Cell;
 
-typedef struct {
-  Cell cells[MAX_X][MAX_Y];
-} State;
+typedef Cell **State;
 
 typedef struct {
   Color color;
@@ -58,34 +64,47 @@ typedef struct {
   bool drawTrail;
   int numberOfCells;
   bool countCells;
+  RuleName rule;
 } Status;
 
+typedef struct {
+  int *born;
+  int *survives;
+} Rule;
+
 /* headers */
-void drawState(State *s, DrawOptions o);
+void drawState(State s, DrawOptions o);
 void drawBackground();
 void drawStatus(Status s);
 Cell inactiveCell();
 Cell activeCell();
-void updateState(State *s);
-void permutateState(State *s, int permutations);
-void randomizeState(State *s);
-void clearState(State *s);
-void activateCell(State *s, int x, int y);
-void disableCell(State *s, int x, int y);
-int countCells(State *s);
+bool isActive(Cell c);
+void updateState(State s, Rule r);
+void permutateState(State s, int permutations);
+void randomizeState(State s);
+void clearState(State s);
+void activateCell(State s, int x, int y);
+void disableCell(State s, int x, int y);
+int countCells(State s);
 bool validLocation(int x, int y);
-int neighbors(State *s, int i, int j);
-bool isExitKeyPressed();
+int neighbors(State s, int i, int j);
 Position getMousePosition();
+Rule readRule(const char *s);
+void freeRule(Rule r);
+Cell applyRule(Rule r, int neighbors, bool active);
+char *ruleName(RuleName n);
+Status updateStatus(Status s);
 
 /* functions */
-void drawState(State *s, DrawOptions o) {
-  for (int x = 0; x < MAX_X; x++) {
-    for (int y = 0; y < MAX_Y; y++) {
-      int xOffset = PADDING + CELL_WIDTH * x;
-      int yOffset = PADDING + CELL_HEIGHT * y;
-      Rectangle rec = {xOffset, yOffset, CELL_WIDTH, CELL_HEIGHT};
-      if (s->cells[x][y].active) {
+int ctoi(char c) { return c - '0'; }
+
+void drawState(State s, DrawOptions o) {
+  for (int x = 0; x < maxX; x++) {
+    for (int y = 0; y < maxY; y++) {
+      int xOffset = padding + cellWidth * x;
+      int yOffset = padding + cellHeight * y;
+      Rectangle rec = {xOffset, yOffset, cellWidth, cellHeight};
+      if (isActive(s[x][y])) {
         DrawRectangleRec(rec, o.color);
         if (o.drawOutline) {
           DrawRectangleLinesEx(rec, 1, o.outlineColor);
@@ -96,14 +115,18 @@ void drawState(State *s, DrawOptions o) {
 }
 
 void drawBackground() {
-  ClearBackground(PADDING_COLOR);
-  DrawRectangleRec(screen, BACKGROUND_COLOR);
+  ClearBackground(paddingColor);
+  DrawRectangleRec(field, backgroundColor);
 }
 
 void drawStatus(Status s) {
-  const int fontSize = PADDING;
-  const int spacing = PADDING;
-  int offset = PADDING;
+  const int fontSize = padding;
+  const int spacing = padding;
+  int offset = padding;
+
+  const char *rule = ruleName(s.rule);
+  DrawText(rule, offset, 0, fontSize, WHITE);
+  offset += spacing + MeasureText(rule, fontSize);
   if (s.paused) {
     const char *paused = "PAUSED";
     DrawText(paused, offset, 0, fontSize, YELLOW);
@@ -123,89 +146,102 @@ void drawStatus(Status s) {
   }
   if (s.drawTrail) {
     const char *trail = "TRAIL";
-    DrawText(trail, offset, 0, fontSize, CELL_TRAIL_COLOR);
+    DrawText(trail, offset, 0, fontSize, cellTrailColor);
     offset += spacing + MeasureText(trail, fontSize);
   }
   if (s.countCells) {
     const int nCellsLen = 32;
     char nCells[nCellsLen];
     snprintf(nCells, nCellsLen, "CELLS: %d", s.numberOfCells);
-    DrawText(nCells, offset, 0, fontSize, CELL_COLOR);
+    DrawText(nCells, offset, 0, fontSize, cellColor);
     offset += spacing + MeasureText(nCells, fontSize);
   }
 }
 
-Cell inactiveCell() { return (Cell){.active = false}; }
+Cell inactiveCell() { return false; }
 
-Cell activeCell() { return (Cell){.active = true}; }
+Cell activeCell() { return true; }
 
-State *create_state() {
-  State *s = malloc(sizeof(State));
-  for (int x = 0; x < MAX_X; x++) {
-    for (int y = 0; y < MAX_Y; y++) {
-      s->cells[x][y] = inactiveCell();
+bool isActive(Cell c) { return c; }
+
+State createState() {
+  State s = malloc(maxX * sizeof(Cell *));
+  for (int x = 0; x < maxX; x++) {
+    s[x] = malloc(maxY * sizeof(Cell));
+    for (int y = 0; y < maxY; y++) {
+      s[x][y] = inactiveCell();
     }
   }
   return s;
 }
 
-void updateState(State *s) {
-  State *next = create_state();
-  for (int x = 0; x < MAX_X; x++) {
-    for (int y = 0; y < MAX_Y; y++) {
-      int n = neighbors(s, x, y);
-      if ((n == 2 || n == 3) && (s->cells[x][y].active)) {
-        next->cells[x][y].active = true;
-      } else if (n == 3 && !s->cells[x][y].active) {
-        next->cells[x][y].active = true;
-      }
+void copyState(State dst, State src) {
+  for (int x = 0; x < maxX; x++) {
+    for (int y = 0; y < maxY; y++) {
+      dst[x][y] = src[x][y];
     }
   }
-  *s = *next;
-  free(next);
 }
 
-void permutateState(State *s, int permutations) {
+void freeState(State s) {
+  for (int x = 0; x < maxX; x++) {
+    free(s[x]);
+  }
+  free(s);
+}
+
+void updateState(State s, Rule r) {
+  State next = createState();
+  for (int x = 0; x < maxX; x++) {
+    for (int y = 0; y < maxY; y++) {
+      next[x][y] = applyRule(r, neighbors(s, x, y), isActive(s[x][y]));
+    }
+  }
+  copyState(s, next);
+  freeState(next);
+}
+
+void permutateState(State s, int permutations) {
   for (int i = 0; i < permutations; i++) {
-    int x = GetRandomValue(0, MAX_X - 1);
-    int y = GetRandomValue(0, MAX_Y - 1);
-    s->cells[x][y] = activeCell();
+    int x = GetRandomValue(0, maxX - 1);
+    int y = GetRandomValue(0, maxY - 1);
+    s[x][y] = activeCell();
   }
 }
 
-void randomizeState(State *s) {
-  for (int x = 0; x < MAX_X; x++) {
-    for (int y = 0; y < MAX_Y; y++) {
-      s->cells[x][y] = GetRandomValue(0, 1) ? activeCell() : inactiveCell();
+void randomizeState(State s) {
+  for (int x = 0; x < maxX; x++) {
+    for (int y = 0; y < maxY; y++) {
+      s[x][y] = GetRandomValue(0, 1) ? activeCell() : inactiveCell();
     }
   }
 }
 
-void clearState(State *s) {
-  for (int x = 0; x < MAX_X; x++) {
-    for (int y = 0; y < MAX_Y; y++) {
-      s->cells[x][y] = inactiveCell();
+void clearState(State s) {
+  for (int x = 0; x < maxX; x++) {
+    for (int y = 0; y < maxY; y++) {
+      s[x][y] = inactiveCell();
     }
   }
 }
 
-void activateCell(State *s, int x, int y) {
+void activateCell(State s, int x, int y) {
   if (validLocation(x, y)) {
-    s->cells[x][y].active = true;
+    s[x][y] = activeCell();
   }
 }
 
-void disableCell(State *s, int x, int y) {
+void disableCell(State s, int x, int y) {
   if (validLocation(x, y)) {
-    s->cells[x][y].active = false;
+    s[x][y] = inactiveCell();
   }
 }
 
-int countCells(State *s) {
+int countCells(State s) {
   int c = 0;
-  for (int x = 0; x < MAX_X; x++) {
-    for (int y = 0; y < MAX_Y; y++) {
-      if (s->cells[x][y].active) {
+  for (int x = 0; x < maxX; x++) {
+    for (int y = 0; y < maxY; y++) {
+      if (isActive(s[x][y])) {
         c++;
       }
     }
@@ -214,15 +250,15 @@ int countCells(State *s) {
 }
 
 bool validLocation(int x, int y) {
-  return x >= 0 && x < MAX_X && y >= 0 && y < MAX_Y;
+  return x >= 0 && x < maxX && y >= 0 && y < maxY;
 }
 
-int neighbors(State *s, int i, int j) {
+int neighbors(State s, int i, int j) {
   int c = 0;
   for (int x = -1; x <= 1; x++) {
     for (int y = -1; y <= 1; y++) {
       int p = i + x, q = j + y;
-      if ((x != 0 || y != 0) && validLocation(p, q) && s->cells[p][q].active) {
+      if ((x != 0 || y != 0) && validLocation(p, q) && isActive(s[p][q])) {
         c++;
       }
     }
@@ -230,72 +266,171 @@ int neighbors(State *s, int i, int j) {
   return c;
 }
 
-bool isExitKeyPressed() {
-  for (size_t i = 0; i < sizeof(exitKeys) / sizeof(*exitKeys); i++) {
-    if (IsKeyPressed(exitKeys[i])) {
-      return true;
+Position getMousePosition() {
+  int x = GetMouseX() - padding;
+  int y = GetMouseY() - padding;
+  return (Position){
+      .x = x / cellWidth,
+      .y = y / cellHeight,
+  };
+}
+
+Rule readRule(const char *r) {
+  const char largestInput[] = "B012345678/S012345678";
+  const int maxLen = sizeof(largestInput) / sizeof(*largestInput);
+  const int nLen = 10;
+  int *born = malloc(nLen * sizeof(int));
+  int *survives = malloc(nLen * sizeof(int));
+  int state = 0, j = 0, k = 0;
+  for (int i = 0; i < maxLen; i++) {
+    const char c = r[i];
+    printf("%c %d\n", c, state);
+    switch (state) {
+    case 0: /* B */
+      assert(c == 'B');
+      state++;
+      break;
+    case 1: /* number after B */
+      if (isdigit(c)) {
+        born[j] = ctoi(c);
+        j++;
+      } else {
+        born[j] = ruleStopper;
+        i--;
+        state++;
+      }
+      break;
+    case 2: /* / */
+      assert(c == '/');
+      state++;
+      break;
+    case 3: /* S */
+      assert(c == 'S');
+      state++;
+      break;
+    case 4: /* number after S */
+      if (isdigit(c)) {
+        survives[k] = ctoi(c);
+        k++;
+      } else {
+        survives[k] = ruleStopper;
+        goto outerEnd;
+      }
+      break;
+    default:
+      fprintf(stderr, "unknown state %d", state);
+      exit(1);
+    }
+  }
+outerEnd:
+  return (Rule){.born = born, .survives = survives};
+}
+
+void freeRule(Rule r) {
+  free(r.born);
+  free(r.survives);
+}
+
+Cell applyRule(Rule r, int neighbors, bool active) {
+  if (active) {
+    for (int i = 0; r.survives[i] != ruleStopper; i++) {
+      if (neighbors == r.survives[i]) {
+        return true;
+      }
+    }
+  } else {
+    for (int i = 0; r.born[i] != ruleStopper; i++) {
+      if (neighbors == r.born[i]) {
+        return true;
+      }
     }
   }
   return false;
 }
 
-Position getMousePosition() {
-  int x = GetMouseX() - PADDING;
-  int y = GetMouseY() - PADDING;
-  return (Position){
-      .x = x / CELL_WIDTH,
-      .y = y / CELL_HEIGHT,
-  };
+char *ruleName(RuleName n) {
+  switch (n) {
+  case Replicator:
+    return "Replicator";
+  case Seeds:
+    return "Seeds";
+  case LifeWithoutDeath:
+    return "Life without Death";
+  case Life:
+    return "Life";
+  case ThirtyFourLife:
+    return "34 Life";
+  case Diamoeba:
+    return "Diamoeba";
+  case TwoXTwo:
+    return "2x2";
+  case HighLife:
+    return "HighLife";
+  case DayAndNight:
+    return "Day & Night";
+  case Morley:
+    return "Morley";
+  case Anneal:
+    return "Anneal";
+  }
+  return "Unknown";
+}
+
+Status updateStatus(Status s) {
+  if (IsKeyPressed(KEY_ESCAPE)) {
+    s.paused = !s.paused;
+  }
+  if (IsKeyPressed(KEY_F)) {
+    s.drawFPS = !s.drawFPS;
+  }
+  if (IsKeyPressed(KEY_O)) {
+    s.drawOutline = !s.drawOutline;
+  }
+  if (IsKeyPressed(KEY_T)) {
+    s.drawTrail = !s.drawTrail;
+  }
+  if (IsKeyPressed(KEY_C)) {
+    s.countCells = !s.countCells;
+  }
+  if (IsKeyPressed(KEY_R)) {
+    s.rule = (s.rule + 1) % nRules;
+  }
+  return s;
 }
 
 int main(void) {
-  const int screenWidth = MAX_X * CELL_WIDTH + 2 * PADDING;
-  const int screenHeight = MAX_Y * CELL_HEIGHT + 2 * PADDING;
-  State *s = create_state();
+  const int screenWidth = maxX * cellWidth + 2 * padding;
+  const int screenHeight = maxY * cellHeight + 2 * padding;
+  State s = createState();
   Status t = (Status){
       .paused = false,
-      .targetFPS = FPS,
+      .targetFPS = defaultFPS,
       .drawFPS = false,
       .drawOutline = false,
       .drawTrail = false,
       .numberOfCells = 0,
       .countCells = true,
+      .rule = Life,
   };
+  Rule rules[nRules];
+  for (int i = 0; i < nRules; i++) {
+    rules[i] = readRule(rulesData[i]);
+  }
 
-  InitWindow(screenWidth, screenHeight, TITLE);
+  InitWindow(screenWidth, screenHeight, gameTitle);
   SetTargetFPS(t.targetFPS);
-  SetExitKey(KEY_NULL);
+  SetExitKey(KEY_Q);
 
   while (!WindowShouldClose()) {
     BeginDrawing();
-
-    if (isExitKeyPressed()) {
-      break;
-    }
-
-    /* status */
-    if (IsKeyPressed(KEY_ESCAPE)) {
-      t.paused = !t.paused;
-    }
-    if (IsKeyPressed(KEY_F)) {
-      t.drawFPS = !t.drawFPS;
-    }
-    if (IsKeyPressed(KEY_O)) {
-      t.drawOutline = !t.drawOutline;
-    }
-    if (IsKeyPressed(KEY_T)) {
-      t.drawTrail = !t.drawTrail;
-    }
-    if (IsKeyPressed(KEY_C)) {
-      t.countCells = !t.countCells;
-    }
+    t = updateStatus(t);
 
     /* state */
     if (IsKeyPressed(KEY_SPACE)) {
       randomizeState(s);
     }
     if (IsKeyDown(KEY_P)) {
-      permutateState(s, PERMUTATIONS);
+      permutateState(s, permutations);
     }
     if (IsKeyPressed(KEY_BACKSPACE)) {
       clearState(s);
@@ -303,13 +438,13 @@ int main(void) {
 
     /* fps */
     if (IsKeyPressed(KEY_EQUAL)) {
-      t.targetFPS += FPS_INCREMENT;
+      t.targetFPS += fpsIncrement;
       SetTargetFPS(t.targetFPS);
     }
     if (IsKeyPressed(KEY_MINUS)) {
-      t.targetFPS -= FPS_INCREMENT;
-      if (t.targetFPS < MIN_FPS) {
-        t.targetFPS = MIN_FPS;
+      t.targetFPS -= fpsIncrement;
+      if (t.targetFPS < minFPS) {
+        t.targetFPS = minFPS;
       }
       SetTargetFPS(t.targetFPS);
     }
@@ -328,27 +463,30 @@ int main(void) {
     drawStatus(t);
     if (t.drawTrail) {
       drawState(s, (DrawOptions){
-                       .color = CELL_TRAIL_COLOR,
-                       .outlineColor = CELL_OUTLINE_COLOR,
+                       .color = cellTrailColor,
+                       .outlineColor = cellOutlineColor,
                        .drawOutline = t.drawOutline,
                    });
     }
     if (!t.paused) {
-      updateState(s);
+      updateState(s, rules[t.rule]);
     }
     if (t.countCells) {
       t.numberOfCells = countCells(s);
     }
     drawState(s, (DrawOptions){
-                     .color = CELL_COLOR,
-                     .outlineColor = CELL_OUTLINE_COLOR,
+                     .color = cellColor,
+                     .outlineColor = cellOutlineColor,
                      .drawOutline = t.drawOutline,
                  });
 
     EndDrawing();
   }
 
-  free(s);
+  for (int i = 0; i < nRules; i++) {
+    freeRule(rules[i]);
+  }
+  freeState(s);
   CloseWindow();
   return 0;
 }
