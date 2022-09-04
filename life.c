@@ -20,9 +20,8 @@ static const Rectangle field = {
     .height = maxY * cellHeight,
 };
 static const char *rulesData[] = {
-    "B1357/S1357",  "B2/S",         "B3/S012345678", "B3/S23",
-    "B34/S34",      "B35678/S5678", "B36/S125",      "B36/S23",
-    "B3678/S34678", "B368/S245",    "B4678/S35678",
+    "B1357/S1357", "B2/S",    "B3/S012345678", "B3/S23",    "B34/S34",      "B35678/S5678",
+    "B36/S125",    "B36/S23", "B3678/S34678",  "B368/S245", "B4678/S35678",
 };
 static const int nRules = sizeof(rulesData) / sizeof(*rulesData);
 
@@ -76,6 +75,9 @@ typedef struct {
 void drawState(State s, DrawOptions o);
 void drawBackground();
 void drawStatus(Status s);
+void drawCursor(Position p);
+void drawCell(Position p, Color c);
+void drawOutline(Position p, Color c);
 Cell inactiveCell();
 Cell activeCell();
 bool isActive(Cell c);
@@ -83,17 +85,18 @@ void updateState(State s, Rule r);
 void permutateState(State s, int permutations);
 void randomizeState(State s);
 void clearState(State s);
-void activateCell(State s, int x, int y);
-void disableCell(State s, int x, int y);
+void activateCell(State s, Position p);
+void disableCell(State s, Position p);
 int countCells(State s);
-bool validLocation(int x, int y);
+bool validPosition(Position p);
 int neighbors(State s, int i, int j);
-Position getMousePosition();
-Rule readRule(const char *s);
+Position cursorPosition();
+Rule parseRule(const char *s);
 void freeRule(Rule r);
 Cell applyRule(Rule r, int neighbors, bool active);
 char *ruleName(RuleName n);
 Status updateStatus(Status s);
+Rectangle cellRectangle(Position p);
 
 /* functions */
 int ctoi(char c) { return c - '0'; }
@@ -101,13 +104,11 @@ int ctoi(char c) { return c - '0'; }
 void drawState(State s, DrawOptions o) {
   for (int x = 0; x < maxX; x++) {
     for (int y = 0; y < maxY; y++) {
-      int xOffset = padding + cellWidth * x;
-      int yOffset = padding + cellHeight * y;
-      Rectangle rec = {xOffset, yOffset, cellWidth, cellHeight};
+      const Position p = {.x = x, .y = y};
       if (isActive(s[x][y])) {
-        DrawRectangleRec(rec, o.color);
+        drawCell(p, o.color);
         if (o.drawOutline) {
-          DrawRectangleLinesEx(rec, 1, o.outlineColor);
+          drawOutline(p, o.outlineColor);
         }
       }
     }
@@ -157,6 +158,12 @@ void drawStatus(Status s) {
     offset += spacing + MeasureText(nCells, fontSize);
   }
 }
+
+void drawCursor(Position p) { drawOutline(p, cursorColor); }
+
+void drawCell(Position p, Color c) { DrawRectangleRec(cellRectangle(p), c); }
+
+void drawOutline(Position p, Color c) { DrawRectangleLinesEx(cellRectangle(p), 1, c); }
 
 Cell inactiveCell() { return false; }
 
@@ -225,15 +232,15 @@ void clearState(State s) {
   }
 }
 
-void activateCell(State s, int x, int y) {
-  if (validLocation(x, y)) {
-    s[x][y] = activeCell();
+void activateCell(State s, Position p) {
+  if (validPosition(p)) {
+    s[p.x][p.y] = activeCell();
   }
 }
 
-void disableCell(State s, int x, int y) {
-  if (validLocation(x, y)) {
-    s[x][y] = inactiveCell();
+void disableCell(State s, Position p) {
+  if (validPosition(p)) {
+    s[p.x][p.y] = inactiveCell();
   }
 }
 
@@ -249,16 +256,14 @@ int countCells(State s) {
   return c;
 }
 
-bool validLocation(int x, int y) {
-  return x >= 0 && x < maxX && y >= 0 && y < maxY;
-}
+bool validPosition(Position p) { return p.x >= 0 && p.x < maxX && p.y >= 0 && p.y < maxY; }
 
 int neighbors(State s, int i, int j) {
   int c = 0;
   for (int x = -1; x <= 1; x++) {
     for (int y = -1; y <= 1; y++) {
       int p = i + x, q = j + y;
-      if ((x != 0 || y != 0) && validLocation(p, q) && isActive(s[p][q])) {
+      if ((x != 0 || y != 0) && validPosition((Position){.x = p, .y = q}) && isActive(s[p][q])) {
         c++;
       }
     }
@@ -266,7 +271,7 @@ int neighbors(State s, int i, int j) {
   return c;
 }
 
-Position getMousePosition() {
+Position cursorPosition() {
   int x = GetMouseX() - padding;
   int y = GetMouseY() - padding;
   return (Position){
@@ -275,7 +280,7 @@ Position getMousePosition() {
   };
 }
 
-Rule readRule(const char *r) {
+Rule parseRule(const char *r) {
   const char largestInput[] = "B012345678/S012345678";
   const int maxLen = sizeof(largestInput) / sizeof(*largestInput);
   const int nLen = 10;
@@ -398,6 +403,12 @@ Status updateStatus(Status s) {
   return s;
 }
 
+Rectangle cellRectangle(Position p) {
+  int xOffset = padding + cellWidth * p.x;
+  int yOffset = padding + cellHeight * p.y;
+  return (Rectangle){xOffset, yOffset, cellWidth, cellHeight};
+}
+
 int main(void) {
   const int screenWidth = maxX * cellWidth + 2 * padding;
   const int screenHeight = maxY * cellHeight + 2 * padding;
@@ -414,7 +425,7 @@ int main(void) {
   };
   Rule rules[nRules];
   for (int i = 0; i < nRules; i++) {
-    rules[i] = readRule(rulesData[i]);
+    rules[i] = parseRule(rulesData[i]);
   }
 
   InitWindow(screenWidth, screenHeight, gameTitle);
@@ -450,12 +461,12 @@ int main(void) {
     }
 
     /* drawing */
-    Position p = getMousePosition();
+    Position p = cursorPosition();
     if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
-      activateCell(s, p.x, p.y);
+      activateCell(s, p);
     }
     if (IsMouseButtonDown(MOUSE_BUTTON_RIGHT)) {
-      disableCell(s, p.x, p.y);
+      disableCell(s, p);
     }
 
     /* rendering */
@@ -479,6 +490,7 @@ int main(void) {
                      .outlineColor = cellOutlineColor,
                      .drawOutline = t.drawOutline,
                  });
+    drawCursor(p);
 
     EndDrawing();
   }

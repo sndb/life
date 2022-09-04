@@ -20,3 +20,4 @@ static const Color cellTrailColor = BLUE;
 static const Color cellOutlineColor = GRAY;
 static const Color paddingColor = DARKGRAY;
 static const Color backgroundColor = BLACK;
+static const Color cursorColor = WHITE;
