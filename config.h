@@ -1,4 +1,7 @@
-#include "raylib.h"
+#ifndef CONFIG_H
+#define CONFIG_H
+
+#include <raylib.h>
 
 static const char *gameTitle = "Conway's Game of Life";
 
@@ -10,9 +13,9 @@ static const int cellHeight   = 3;
 static const int padding      = 10;
 
 /* fps */
-static const int defaultFPS   = 30;
-static const int fpsIncrement = 10;
-static const int minFPS       = 10;
+static const int defaultFPS = 30;
+static const int deltaFPS   = 10;
+static const int minFPS     = 10;
 
 /* colors */
 static const Color cellColor        = YELLOW;
@@ -21,3 +24,5 @@ static const Color cellOutlineColor = GRAY;
 static const Color paddingColor     = DARKGRAY;
 static const Color backgroundColor  = BLACK;
 static const Color cursorColor      = WHITE;
+
+#endif
