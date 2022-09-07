@@ -1,9 +1,11 @@
 #include "aux.h"
 
+#include <assert.h>
 #include <raylib.h>
 
-int
+uint8_t
 ctoi(char c) {
+	assert(c >= '0' && c <= '9');
 	return c - '0';
 }
 

@@ -11,82 +11,93 @@
 #include <stdlib.h>
 #include <string.h>
 
-static const int permutations = 1000;
-
-Status
-updateStatus(Status s) {
+static void
+updateStatus(Status *s) {
 	if (IsKeyPressed(KEY_ESCAPE))
-		s.paused = !s.paused;
+		s->paused = !s->paused;
 	if (IsKeyPressed(KEY_F))
-		s.drawFPS = !s.drawFPS;
-	if (IsKeyPressed(KEY_O))
-		s.drawOutline = !s.drawOutline;
-	if (IsKeyPressed(KEY_T))
-		s.drawTrail = !s.drawTrail;
+		s->drawFPS = !s->drawFPS;
 	if (IsKeyPressed(KEY_C))
-		s.countCells = !s.countCells;
+		s->countCells = !s->countCells;
 	if (IsKeyPressed(KEY_R))
-		changeRule(s.ruleSet);
-	return s;
+		changeRule(s->ruleSet);
+}
+
+static void
+updateDrawOptions(DrawOptions *o) {
+	if (IsKeyPressed(KEY_O))
+		o->drawOutline = !o->drawOutline;
+	if (IsKeyPressed(KEY_T))
+		o->drawTrail = !o->drawTrail;
 }
 
 Position
 cursorPosition() {
-	int x = GetMouseX() - padding;
-	int y = GetMouseY() - padding;
 	return (Position){
-	    .x = x / cellWidth,
-	    .y = y / cellHeight,
+		.x = (GetMouseX() - padding) / cellWidth,
+		.y = (GetMouseY() - padding) / cellHeight,
 	};
 }
 
 int
 main(void) {
-	const int maxX         = screenWidth / cellWidth;
-	const int maxY         = screenHeight / cellHeight;
-	const int screenWidth  = maxX * cellWidth + 2 * padding;
-	const int screenHeight = maxY * cellHeight + 2 * padding;
+	const size_t   maxX         = screenWidth / cellWidth;
+	const size_t   maxY         = screenHeight / cellHeight;
+	const uint16_t screenWidth  = maxX * cellWidth + 2 * padding;
+	const uint16_t screenHeight = maxY * cellHeight + 2 * padding;
 
-	State *s = newState(maxX, maxY);
-	Status t = (Status){
-	    .paused        = false,
-	    .targetFPS     = defaultFPS,
-	    .drawFPS       = false,
-	    .drawOutline   = false,
-	    .drawTrail     = false,
-	    .numberOfCells = 0,
-	    .countCells    = true,
-	    .ruleSet       = newRuleSet(),
+	State  *s = newState(maxX, maxY);
+	Status *t = &(Status){
+		.paused        = false,
+		.targetFPS     = defaultFPS,
+		.drawFPS       = false,
+		.numberOfCells = 0,
+		.countCells    = true,
+		.ruleSet       = newRuleSet(),
 
+	};
+	DrawOptions *o = &(DrawOptions){
+		.cellColor       = cellColor,
+		.outlineColor    = outlineColor,
+		.trailColor      = trailColor,
+		.backgroundColor = backgroundColor,
+		.paddingColor    = paddingColor,
+		.cursorColor     = cursorColor,
+		.drawOutline     = false,
+		.drawTrail       = false,
+		.cellWidth       = cellWidth,
+		.cellHeight      = cellHeight,
+		.padding         = padding,
 	};
 
 	InitWindow(screenWidth, screenHeight, gameTitle);
-	SetTargetFPS(t.targetFPS);
+	SetTargetFPS(t->targetFPS);
 	SetExitKey(KEY_Q);
 	HideCursor();
 
 	while (!WindowShouldClose()) {
 		BeginDrawing();
-		t = updateStatus(t);
+		updateStatus(t);
+		updateDrawOptions(o);
 
 		/* state */
 		if (IsKeyPressed(KEY_SPACE))
 			randomizeState(s);
 		if (IsKeyDown(KEY_P))
-			permutateState(s, permutations);
+			permutateState(s, maxX * maxY / ((maxX + maxY) / 2));
 		if (IsKeyPressed(KEY_BACKSPACE))
 			clearState(s);
 
 		/* fps */
 		if (IsKeyPressed(KEY_EQUAL)) {
-			t.targetFPS += deltaFPS;
-			SetTargetFPS(t.targetFPS);
+			t->targetFPS += deltaFPS;
+			SetTargetFPS(t->targetFPS);
 		}
 		if (IsKeyPressed(KEY_MINUS)) {
-			t.targetFPS -= deltaFPS;
-			if (t.targetFPS < minFPS)
-				t.targetFPS = minFPS;
-			SetTargetFPS(t.targetFPS);
+			t->targetFPS -= deltaFPS;
+			if (t->targetFPS < minFPS)
+				t->targetFPS = minFPS;
+			SetTargetFPS(t->targetFPS);
 		}
 
 		/* drawing */
@@ -97,31 +108,17 @@ main(void) {
 			disableCell(s, p);
 
 		/* rendering */
-		drawBackground(s);
-		drawStatus(t);
-		if (t.drawTrail)
-			drawState(s,
-			          (DrawOptions){
-				      .color        = cellTrailColor,
-				      .outlineColor = cellOutlineColor,
-				      .drawOutline  = t.drawOutline,
-				  });
-		if (!t.paused)
-			updateState(s, getRule(t.ruleSet));
-		if (t.countCells)
-			t.numberOfCells = countCells(s);
-		drawState(s,
-		          (DrawOptions){
-			      .color        = cellColor,
-			      .outlineColor = cellOutlineColor,
-			      .drawOutline  = t.drawOutline,
-			  });
-		drawCursor(p);
+		drawGame(s, t, o);
+		drawCursor(p, o);
+		if (!t->paused)
+			updateState(s, getRule(t->ruleSet));
+		if (t->countCells)
+			t->numberOfCells = countCells(s);
 
 		EndDrawing();
 	}
 
-	freeRuleSet(t.ruleSet);
+	freeRuleSet(t->ruleSet);
 	freeState(s);
 	CloseWindow();
 	return 0;

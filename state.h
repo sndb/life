@@ -9,20 +9,19 @@
 
 typedef struct {
 	Cell **field;
-	int    x;
-	int    y;
+	size_t x, y;
 } State;
 
-Cell   getCell(State *s, Position p);
-State *newState(int x, int y);
-void   freeState(State *s);
-void   activateCell(State *s, Position p);
-void   disableCell(State *s, Position p);
-void   updateState(State *s, Rule r);
-void   permutateState(State *s, int permutations);
-void   randomizeState(State *s);
-int    countCells(State *s);
-void   clearState(State *s);
-int    neighbors(State *s, int x, int y);
+Cell    getCell(const State *s, Position p);
+State  *newState(size_t x, size_t y);
+void    freeState(State *s);
+void    activateCell(State *s, Position p);
+void    disableCell(State *s, Position p);
+void    updateState(State *s, Rule r);
+void    permutateState(State *s, size_t permutations);
+void    randomizeState(State *s);
+size_t  countCells(const State *s);
+void    clearState(State *s);
+uint8_t neighbors(const State *s, Position p);
 
 #endif

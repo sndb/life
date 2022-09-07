@@ -2,13 +2,18 @@
 #define AUX_H
 
 #include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
 
 typedef struct {
-	int x;
-	int y;
+	size_t x;
+	size_t y;
 } Position;
 
-int  ctoi(char c);
+/* converts a digit to a number */
+uint8_t ctoi(char c);
+
+/* returns a random boolean value */
 bool randBool();
 
 #endif

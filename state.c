@@ -9,43 +9,43 @@
 #include <stdlib.h>
 
 static bool
-validPosition(State *s, Position p) {
-	return p.x >= 0 && p.x < s->x && p.y >= 0 && p.y < s->y;
+validPosition(const State *s, Position p) {
+	return p.x < s->x && p.y < s->y;
 }
 
 Cell
-getCell(State *s, Position p) {
+getCell(const State *s, Position p) {
 	return s->field[p.x][p.y];
 }
 
 State *
-newState(int x, int y) {
+newState(size_t x, size_t y) {
 	State *s = malloc(sizeof(State));
 	assert(s != NULL);
-	s->x     = x;
-	s->y     = y;
 	s->field = malloc(x * sizeof(Cell *));
 	assert(s->field != NULL);
+	s->x = x;
+	s->y = y;
 
-	for (int i = 0; i < s->x; i++) {
+	for (size_t i = 0; i < s->x; i++) {
 		s->field[i] = malloc(y * sizeof(Cell));
 		assert(s->field[i] != NULL);
-		for (int j = 0; j < s->y; j++)
+		for (size_t j = 0; j < s->y; j++)
 			s->field[i][j] = inactiveCell();
 	}
 	return s;
 }
 
 static void
-copyState(State *dst, State *src) {
-	for (int x = 0; x < src->x; x++)
-		for (int y = 0; y < src->y; y++)
+copyState(State *dst, const State *src) {
+	for (size_t x = 0; x < src->x; x++)
+		for (size_t y = 0; y < src->y; y++)
 			dst->field[x][y] = src->field[x][y];
 }
 
 void
 freeState(State *s) {
-	for (int x = 0; x < s->x; x++)
+	for (size_t x = 0; x < s->x; x++)
 		free(s->field[x]);
 	free(s->field);
 	free(s);
@@ -66,10 +66,10 @@ disableCell(State *s, Position p) {
 void
 updateState(State *s, Rule r) {
 	State *next = newState(s->x, s->y);
-	for (int x = 0; x < s->x; x++) {
-		for (int y = 0; y < s->y; y++) {
-			Position p = {.x = x, .y = y};
-			if (shouldLive(r, neighbors(s, x, y), isActive(getCell(s, p))))
+	for (size_t x = 0; x < s->x; x++) {
+		for (size_t y = 0; y < s->y; y++) {
+			const Position p = {.x = x, .y = y};
+			if (shouldLive(r, neighbors(s, p), isActive(getCell(s, p))))
 				activateCell(next, p);
 		}
 	}
@@ -78,29 +78,29 @@ updateState(State *s, Rule r) {
 }
 
 void
-permutateState(State *s, int permutations) {
-	for (int i = 0; i < permutations; i++) {
-		activateCell(s,
-		             (Position){
-				 .x = GetRandomValue(0, s->x - 1),
-				 .y = GetRandomValue(0, s->y - 1),
-			     });
+permutateState(State *s, size_t permutations) {
+	for (size_t i = 0; i < permutations; i++) {
+		const Position p = {
+			.x = GetRandomValue(0, s->x - 1),
+			.y = GetRandomValue(0, s->y - 1),
+		};
+		activateCell(s, p);
 	}
 }
 
 void
 randomizeState(State *s) {
-	for (int x = 0; x < s->x; x++)
-		for (int y = 0; y < s->y; y++)
+	for (size_t x = 0; x < s->x; x++)
+		for (size_t y = 0; y < s->y; y++)
 			if (randBool())
 				activateCell(s, (Position){.x = x, .y = y});
 }
 
-int
-countCells(State *s) {
-	int c = 0;
-	for (int x = 0; x < s->x; x++)
-		for (int y = 0; y < s->y; y++)
+size_t
+countCells(const State *s) {
+	size_t c = 0;
+	for (size_t x = 0; x < s->x; x++)
+		for (size_t y = 0; y < s->y; y++)
 			if (isActive(getCell(s, (Position){.x = x, .y = y})))
 				c++;
 	return c;
@@ -108,20 +108,20 @@ countCells(State *s) {
 
 void
 clearState(State *s) {
-	for (int x = 0; x < s->x; x++)
-		for (int y = 0; y < s->y; y++)
+	for (size_t x = 0; x < s->x; x++)
+		for (size_t y = 0; y < s->y; y++)
 			disableCell(s, (Position){.x = x, .y = y});
 }
 
-int
-neighbors(State *s, int x, int y) {
-	int c = 0;
-	for (int i = -1; i <= 1; i++) {
-		for (int j = -1; j <= 1; j++) {
-			if (i == 0 && j == 0)
+uint8_t
+neighbors(const State *s, Position p) {
+	uint8_t c = 0;
+	for (size_t i = 0; i < 3; i++) {
+		for (size_t j = 0; j < 3; j++) {
+			if (i == 1 && j == 1)
 				continue;
-			const Position p = {.x = x + i, .y = y + j};
-			if (validPosition(s, p) && isActive(getCell(s, p)))
+			const Position q = {.x = p.x + i - 1, .y = p.y + j - 1};
+			if (validPosition(s, q) && isActive(getCell(s, q)))
 				c++;
 		}
 	}

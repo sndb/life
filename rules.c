@@ -7,31 +7,32 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-const char *rulesData[] = {
-    "B1357/S1357",
-    "B2/S",
-    "B3/S012345678",
-    "B3/S23",
-    "B34/S34",
-    "B35678/S5678",
-    "B36/S125",
-    "B36/S23",
-    "B3678/S34678",
-    "B368/S245",
-    "B4678/S35678",
+static const char *rulesData[] = {
+	"B1357/S1357",
+	"B2/S",
+	"B3/S012345678",
+	"B3/S23",
+	"B34/S34",
+	"B35678/S5678",
+	"B36/S125",
+	"B36/S23",
+	"B3678/S34678",
+	"B368/S245",
+	"B4678/S35678",
 };
-const int        nRules      = sizeof(rulesData) / sizeof(*rulesData);
-static const int ruleStopper = -1;
+static const size_t nRules      = sizeof(rulesData) / sizeof(*rulesData);
+static const int8_t ruleStopper = -1;
 
 static Rule
 parseRule(const char *r) {
-	const int maxLen   = sizeof("B012345678/S012345678") / sizeof(char);
-	const int nLen     = 10;
-	int      *born     = malloc(nLen * sizeof(int));
-	int      *survives = malloc(nLen * sizeof(int));
+	const size_t maxLen   = sizeof("B012345678/S012345678") / sizeof(char);
+	const size_t nLen     = 10;
+	int8_t      *born     = malloc(nLen * sizeof(int8_t));
+	int8_t      *survives = malloc(nLen * sizeof(int8_t));
 
-	int state = 0, j = 0, k = 0;
-	for (int i = 0; i < maxLen; i++) {
+	uint8_t state = 0;
+	size_t  j = 0, k = 0;
+	for (size_t i = 0; i < maxLen; i++) {
 		const char c = r[i];
 		switch (state) {
 		case 0: /* B */
@@ -75,13 +76,13 @@ out:
 }
 
 bool
-shouldLive(Rule r, int neighbors, bool active) {
+shouldLive(Rule r, uint8_t neighbors, bool active) {
 	if (active) {
-		for (int i = 0; r.survives[i] != ruleStopper; i++)
+		for (size_t i = 0; r.survives[i] != ruleStopper; i++)
 			if (neighbors == r.survives[i])
 				return true;
 	} else {
-		for (int i = 0; r.born[i] != ruleStopper; i++)
+		for (size_t i = 0; r.born[i] != ruleStopper; i++)
 			if (neighbors == r.born[i])
 				return true;
 	}
@@ -94,7 +95,7 @@ freeRule(Rule r) {
 	free(r.survives);
 }
 
-char *
+const char *
 ruleName(RuleName r) {
 	switch (r) {
 	case Replicator:
@@ -127,7 +128,7 @@ RuleSet *
 newRuleSet() {
 	Rule    *rules = malloc(nRules * sizeof(Rule));
 	RuleSet *s     = malloc(sizeof(RuleSet));
-	for (int i = 0; i < nRules; i++)
+	for (size_t i = 0; i < nRules; i++)
 		rules[i] = parseRule(rulesData[i]);
 	s->rules  = rules;
 	s->choice = Life;
@@ -136,7 +137,7 @@ newRuleSet() {
 
 void
 freeRuleSet(RuleSet *s) {
-	for (int i = 0; i < nRules; i++)
+	for (size_t i = 0; i < nRules; i++)
 		freeRule(s->rules[i]);
 	free(s->rules);
 	free(s);
@@ -149,11 +150,11 @@ changeRule(RuleSet *s) {
 }
 
 Rule
-getRule(RuleSet *s) {
+getRule(const RuleSet *s) {
 	return s->rules[s->choice];
 }
 
 RuleName
-getRuleName(RuleSet *s) {
+getRuleName(const RuleSet *s) {
 	return s->choice;
 }

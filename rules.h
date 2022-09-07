@@ -3,6 +3,8 @@
 
 #include "cell.h"
 
+#include <stdint.h>
+
 typedef enum {
 	Replicator,
 	Seeds,
@@ -18,8 +20,8 @@ typedef enum {
 } RuleName;
 
 typedef struct {
-	int *born;
-	int *survives;
+	int8_t *born;
+	int8_t *survives;
 } Rule;
 
 typedef struct {
@@ -27,12 +29,12 @@ typedef struct {
 	RuleName choice;
 } RuleSet;
 
-bool     shouldLive(Rule r, int neighbors, bool active);
-char    *ruleName(RuleName r);
-RuleSet *newRuleSet();
-void     freeRuleSet(RuleSet *s);
-Rule     changeRule(RuleSet *s);
-Rule     getRule(RuleSet *s);
-RuleName getRuleName(RuleSet *s);
+bool        shouldLive(Rule r, uint8_t neighbors, bool active);
+const char *ruleName(RuleName r);
+RuleSet    *newRuleSet();
+void        freeRuleSet(RuleSet *s);
+Rule        changeRule(RuleSet *s);
+Rule        getRule(const RuleSet *s);
+RuleName    getRuleName(const RuleSet *s);
 
 #endif

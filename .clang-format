@@ -1,4 +1,8 @@
 BasedOnStyle: LLVM
+UseTab: AlignWithSpaces
+TabWidth: 8
+IndentWidth: 8
+ContinuationIndentWidth: 8
 AlignArrayOfStructures: Left
 AlignConsecutiveMacros: Consecutive
 AlignConsecutiveAssignments: Consecutive
@@ -17,10 +21,8 @@ ColumnLimit: 100
 QualifierAlignment: Left
 IncludeBlocks: Regroup
 IndentPPDirectives: BeforeHash
-IndentWidth: 8
 InsertTrailingCommas: Wrapped
 KeepEmptyLinesAtTheStartOfBlocks: false
 RemoveBracesLLVM: true
 SeparateDefinitionBlocks: Always
 SortIncludes: CaseInsensitive
-UseTab: AlignWithSpaces
