@@ -1,7 +1,7 @@
 #!/bin/sh
 
 GAME_NAME="life"
-SOURCES="*.c"
+SOURCES="src/*.c"
 CC=cc
 FLAGS="-std=c11 -Wpedantic -Wall -Wextra -O3"
 
