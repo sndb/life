@@ -9,9 +9,11 @@ static const char *gameTitle = "Conway's Game of Life";
 /* resolution */
 static const uint16_t screenWidth  = 1280;
 static const uint16_t screenHeight = 720;
-static const uint8_t  cellWidth    = 3;
-static const uint8_t  cellHeight   = 3;
-static const uint8_t  padding      = 10;
+
+/* interface */
+static const uint8_t cellWidth  = 3;
+static const uint8_t cellHeight = 3;
+static const uint8_t padding    = 10;
 
 /* fps */
 static const uint16_t defaultFPS = 30;
