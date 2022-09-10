@@ -7,11 +7,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-static const char *ruleStrings[] = {
+static const char *variationNames[] = {
+	"Life",
 	"Replicator",
 	"Seeds",
 	"Life without Death",
-	"Life",
 	"34 Life",
 	"Diamoeba",
 	"2x2",
@@ -20,11 +20,11 @@ static const char *ruleStrings[] = {
 	"Morley",
 	"Anneal",
 };
-static const char *rulesData[] = {
+static const char *variationsData[] = {
+	"B3/S23",
 	"B1357/S1357",
 	"B2/S",
 	"B3/S012345678",
-	"B3/S23",
 	"B34/S34",
 	"B35678/S5678",
 	"B36/S125",
@@ -33,20 +33,13 @@ static const char *rulesData[] = {
 	"B368/S245",
 	"B4678/S35678",
 };
-static const size_t nRules      = sizeof(rulesData) / sizeof(*rulesData);
-static const int8_t ruleStopper = -1;
+static const size_t nVariations = sizeof(variationsData) / sizeof(*variationsData);
 
 static Rule
-parseRule(const char *r) {
-	const size_t maxLen   = sizeof("B012345678/S012345678") / sizeof(char);
-	const size_t nLen     = 10;
-	int8_t      *born     = malloc(nLen * sizeof(int8_t));
-	int8_t      *survives = malloc(nLen * sizeof(int8_t));
-
+parseRule(const char *s) {
+	Rule    rule  = {.born = 0, .survives = 0};
 	uint8_t state = 0;
-	size_t  j = 0, k = 0;
-	for (size_t i = 0; i < maxLen; i++) {
-		const char c = r[i];
+	for (char c; (c = *s); s++) {
 		switch (state) {
 		case 0: /* B */
 			assert(c == 'B');
@@ -54,11 +47,11 @@ parseRule(const char *r) {
 			break;
 		case 1: /* number after B */
 			if (isdigit(c)) {
-				born[j] = ctoi(c);
-				j++;
+				const uint8_t n = ctoi(c);
+				assert(n <= 8);
+				rule.born |= 1 << n;
 			} else {
-				born[j] = ruleStopper;
-				i--;
+				s--;
 				state++;
 			}
 			break;
@@ -72,78 +65,53 @@ parseRule(const char *r) {
 			break;
 		case 4: /* number after S */
 			if (isdigit(c)) {
-				survives[k] = ctoi(c);
-				k++;
+				const uint8_t n = ctoi(c);
+				assert(n <= 8);
+				rule.survives |= 1 << n;
 			} else {
-				survives[k] = ruleStopper;
-				goto out;
+				die("unknown character %c after the second number\n", c);
 			}
 			break;
 		default:
-			fprintf(stderr, "unknown state %d", state);
-			exit(1);
+			die("bad state %d\n", state);
 		}
 	}
-out:
-	return (Rule){.born = born, .survives = survives};
+	return rule;
 }
 
 bool
 shouldLive(Rule r, uint8_t neighbors, bool active) {
-	if (active) {
-		for (; *r.survives != ruleStopper; r.survives++)
-			if (neighbors == *r.survives)
-				return true;
-	} else {
-		for (; *r.born != ruleStopper; r.born++)
-			if (neighbors == *r.born)
-				return true;
+	return active ? (r.survives & 1 << neighbors) > 0 : (r.born & 1 << neighbors) > 0;
+}
+
+Variation *
+newVariation() {
+	Variation *head = NULL;
+	Variation *tail = NULL;
+	for (size_t i = 0; i < nVariations; i++) {
+		Variation *curr = malloc(sizeof(Variation));
+		if (!head)
+			head = curr;
+		curr->rule = parseRule(variationsData[i]);
+		curr->name = variationNames[i];
+		if (tail)
+			tail->next = curr;
+		tail = curr;
 	}
-	return false;
-}
-
-static void
-freeRule(Rule r) {
-	free(r.born);
-	free(r.survives);
-}
-
-const char *
-ruleString(RuleName r) {
-	return ruleStrings[r];
-}
-
-RuleSet *
-newRuleSet() {
-	Rule    *rules = malloc(nRules * sizeof(Rule));
-	RuleSet *s     = malloc(sizeof(RuleSet));
-	for (size_t i = 0; i < nRules; i++)
-		rules[i] = parseRule(rulesData[i]);
-	s->rules  = rules;
-	s->choice = Life;
-	return s;
+	tail->next = head;
+	return head;
 }
 
 void
-freeRuleSet(RuleSet *s) {
-	for (size_t i = 0; i < nRules; i++)
-		freeRule(s->rules[i]);
-	free(s->rules);
-	free(s);
-}
-
-Rule
-changeRule(RuleSet *s) {
-	s->choice = (s->choice + 1) % nRules;
-	return s->rules[s->choice];
-}
-
-Rule
-getRule(const RuleSet *s) {
-	return s->rules[s->choice];
-}
-
-RuleName
-getRuleName(const RuleSet *s) {
-	return s->choice;
+freeVariation(Variation *n) {
+	if (n == n->next) {
+		free(n);
+		return;
+	}
+	Variation *p = n;
+	while (p->next != n)
+		p = p->next;
+	p->next = p->next->next;
+	freeVariation(n->next);
+	free(n);
 }

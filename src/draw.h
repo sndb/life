@@ -31,12 +31,12 @@ typedef struct {
 } GeometryOpts;
 
 typedef struct {
-	bool     paused;
-	uint16_t targetFPS;
-	bool     drawFPS;
-	size_t   numberOfCells;
-	bool     countCells;
-	RuleSet *ruleSet;
+	bool       paused;
+	uint16_t   targetFPS;
+	bool       drawFPS;
+	size_t     numberOfCells;
+	bool       countCells;
+	Variation *variation;
 } Status;
 
 void drawActiveCells(const State *s, const GeometryOpts *g, const CellOpts *c);

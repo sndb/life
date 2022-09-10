@@ -5,36 +5,19 @@
 
 #include <stdint.h>
 
-typedef enum {
-	Replicator,
-	Seeds,
-	LifeWithoutDeath,
-	Life,
-	ThirtyFourLife,
-	Diamoeba,
-	TwoXTwo,
-	HighLife,
-	DayAndNight,
-	Morley,
-	Anneal,
-} RuleName;
-
 typedef struct {
-	int8_t *born;
-	int8_t *survives;
+	uint16_t born     : 9;
+	uint16_t survives : 9;
 } Rule;
 
-typedef struct {
-	Rule    *rules;
-	RuleName choice;
-} RuleSet;
+typedef struct Variation {
+	Rule              rule;
+	const char       *name;
+	struct Variation *next;
+} Variation;
 
-bool        shouldLive(Rule r, uint8_t neighbors, bool active);
-const char *ruleString(RuleName r);
-RuleSet    *newRuleSet();
-void        freeRuleSet(RuleSet *s);
-Rule        changeRule(RuleSet *s);
-Rule        getRule(const RuleSet *s);
-RuleName    getRuleName(const RuleSet *s);
+bool       shouldLive(Rule r, uint8_t neighbors, bool active);
+Variation *newVariation();
+void       freeVariation(Variation *n);
 
 #endif

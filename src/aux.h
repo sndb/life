@@ -10,6 +10,9 @@ typedef struct {
 	size_t y;
 } Position;
 
+/* crash with an error */
+void die(const char *fmt, ...);
+
 /* converts a digit to a number */
 uint8_t ctoi(char c);
 

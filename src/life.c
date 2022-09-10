@@ -32,7 +32,7 @@ newGame() {
 			.drawFPS       = false,
 			.numberOfCells = 0,
 			.countCells    = false,
-			.ruleSet       = newRuleSet(),
+			.variation     = newVariation(),
 		},
 		.trail = {
 			.drawTrail  = false,
@@ -73,7 +73,7 @@ handleInputStatus(Status *s) {
 	if (IsKeyPressed(KEY_C))
 		s->countCells = !s->countCells;
 	if (IsKeyPressed(KEY_R))
-		changeRule(s->ruleSet);
+		s->variation = s->variation->next;
 
 	bool fpsUpdated = false;
 	if (IsKeyPressed(KEY_EQUAL)) {
@@ -150,7 +150,7 @@ postDrawGame(const Game *game) {
 static void
 updateGame(Game *game) {
 	if (!game->status.paused)
-		updateState(game->state, getRule(game->status.ruleSet));
+		updateState(game->state, game->status.variation->rule);
 	if (game->status.countCells)
 		game->status.numberOfCells = countCells(game->state);
 }
@@ -175,7 +175,7 @@ init(Game *game) {
 
 static void
 quit(Game *game) {
-	freeRuleSet(game->status.ruleSet);
+	freeVariation(game->status.variation);
 	freeState(game->state);
 	CloseWindow();
 }
