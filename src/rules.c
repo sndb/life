@@ -7,6 +7,19 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+static const char *ruleStrings[] = {
+	"Replicator",
+	"Seeds",
+	"Life without Death",
+	"Life",
+	"34 Life",
+	"Diamoeba",
+	"2x2",
+	"HighLife",
+	"Day & Night",
+	"Morley",
+	"Anneal",
+};
 static const char *rulesData[] = {
 	"B1357/S1357",
 	"B2/S",
@@ -78,12 +91,12 @@ out:
 bool
 shouldLive(Rule r, uint8_t neighbors, bool active) {
 	if (active) {
-		for (size_t i = 0; r.survives[i] != ruleStopper; i++)
-			if (neighbors == r.survives[i])
+		for (; *r.survives != ruleStopper; r.survives++)
+			if (neighbors == *r.survives)
 				return true;
 	} else {
-		for (size_t i = 0; r.born[i] != ruleStopper; i++)
-			if (neighbors == r.born[i])
+		for (; *r.born != ruleStopper; r.born++)
+			if (neighbors == *r.born)
 				return true;
 	}
 	return false;
@@ -96,32 +109,8 @@ freeRule(Rule r) {
 }
 
 const char *
-ruleName(RuleName r) {
-	switch (r) {
-	case Replicator:
-		return "Replicator";
-	case Seeds:
-		return "Seeds";
-	case LifeWithoutDeath:
-		return "Life without Death";
-	case Life:
-		return "Life";
-	case ThirtyFourLife:
-		return "34 Life";
-	case Diamoeba:
-		return "Diamoeba";
-	case TwoXTwo:
-		return "2x2";
-	case HighLife:
-		return "HighLife";
-	case DayAndNight:
-		return "Day & Night";
-	case Morley:
-		return "Morley";
-	case Anneal:
-		return "Anneal";
-	}
-	return "Unknown";
+ruleString(RuleName r) {
+	return ruleStrings[r];
 }
 
 RuleSet *

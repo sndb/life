@@ -22,6 +22,5 @@ void    permutateState(State *s, size_t permutations);
 void    randomizeState(State *s);
 size_t  countCells(const State *s);
 void    clearState(State *s);
-uint8_t neighbors(const State *s, Position p);
 
 #endif

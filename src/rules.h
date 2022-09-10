@@ -30,7 +30,7 @@ typedef struct {
 } RuleSet;
 
 bool        shouldLive(Rule r, uint8_t neighbors, bool active);
-const char *ruleName(RuleName r);
+const char *ruleString(RuleName r);
 RuleSet    *newRuleSet();
 void        freeRuleSet(RuleSet *s);
 Rule        changeRule(RuleSet *s);

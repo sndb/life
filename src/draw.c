@@ -66,7 +66,7 @@ drawStatus(const Status *s, const GeometryOpts *g, const CellOpts *c, const Trai
 	DrawText(prefix, offset, 0, fontSize, GRAY);
 	offset += spacing + MeasureText(prefix, fontSize);
 
-	const char *rule = ruleName(getRuleName(s->ruleSet));
+	const char *rule = ruleString(getRuleName(s->ruleSet));
 	DrawText(rule, offset, 0, fontSize, WHITE);
 	offset += spacing + MeasureText(rule, fontSize);
 

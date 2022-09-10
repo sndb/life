@@ -13,6 +13,21 @@ validPosition(const State *s, Position p) {
 	return p.x < s->x && p.y < s->y;
 }
 
+static uint8_t
+neighbors(const State *s, Position p) {
+	uint8_t c = 0;
+	for (size_t i = 0; i < 3; i++) {
+		for (size_t j = 0; j < 3; j++) {
+			if (i == 1 && j == 1)
+				continue;
+			const Position q = {.x = p.x + i - 1, .y = p.y + j - 1};
+			if (validPosition(s, q) && isActive(getCell(s, q)))
+				c++;
+		}
+	}
+	return c;
+}
+
 Cell
 getCell(const State *s, Position p) {
 	return s->field[p.x][p.y];
@@ -111,19 +126,4 @@ clearState(State *s) {
 	for (size_t x = 0; x < s->x; x++)
 		for (size_t y = 0; y < s->y; y++)
 			disableCell(s, (Position){.x = x, .y = y});
-}
-
-uint8_t
-neighbors(const State *s, Position p) {
-	uint8_t c = 0;
-	for (size_t i = 0; i < 3; i++) {
-		for (size_t j = 0; j < 3; j++) {
-			if (i == 1 && j == 1)
-				continue;
-			const Position q = {.x = p.x + i - 1, .y = p.y + j - 1};
-			if (validPosition(s, q) && isActive(getCell(s, q)))
-				c++;
-		}
-	}
-	return c;
 }
