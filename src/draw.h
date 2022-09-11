@@ -8,27 +8,11 @@
 #include <stdint.h>
 
 typedef struct {
-	Color trailColor;
-	bool  drawTrail;
-} TrailOpts;
-
-typedef struct {
-	Color cellColor;
-	Color outlineColor;
-	bool  drawOutline;
-} CellOpts;
-
-typedef struct {
-	Color backgroundColor;
-	Color paddingColor;
-	Color cursorColor;
-} InterfaceOpts;
-
-typedef struct {
 	uint8_t cellWidth;
 	uint8_t cellHeight;
 	uint8_t padding;
-} GeometryOpts;
+	uint8_t fontSize;
+} Geometry;
 
 typedef struct {
 	bool       paused;
@@ -39,9 +23,15 @@ typedef struct {
 	Variation *variation;
 } Status;
 
-void drawActiveCells(const State *s, const GeometryOpts *g, const CellOpts *c);
-void drawBackground(const State *s, const GeometryOpts *g, const InterfaceOpts *i);
-void drawStatus(const Status *s, const GeometryOpts *g, const CellOpts *c, const TrailOpts *t);
-void drawCursor(Position p, const InterfaceOpts *i, const GeometryOpts *g);
+typedef uint16_t          DrawCellMask;
+static const DrawCellMask DrawFill    = 1 << 0;
+static const DrawCellMask DrawOutline = 1 << 1;
+static const DrawCellMask DrawGlow    = 1 << 2;
+static const DrawCellMask DrawTrail   = 1 << 3;
+
+void     drawActiveCells(const State *s, const Geometry *g, Color fg, DrawCellMask m);
+void     drawBackground(const State *s, const Geometry *g, Color padding, Color bg);
+uint16_t drawElement(const Geometry *g, uint16_t offset, Color fg, const char *fmt, ...);
+void     drawCursor(Position p, const Geometry *g, Color fg);
 
 #endif

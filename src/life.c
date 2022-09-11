@@ -12,47 +12,37 @@
 #include <string.h>
 
 typedef struct {
-	State        *state;
-	Status        status;
-	TrailOpts     trail;
-	CellOpts      cell;
-	InterfaceOpts interface;
-	GeometryOpts  geometry;
+	State       *state;
+	Status       status;
+	Geometry     geometry;
+	DrawCellMask mask;
 } Game;
 
 Game
 newGame() {
-	const size_t maxX = (screenWidth - 2 * padding) / cellWidth;
-	const size_t maxY = (screenHeight - 2 * padding) / cellHeight;
+	const size_t maxX   = (screenWidth - 2 * padding) / cellWidth;
+	const size_t maxY   = (screenHeight - 2 * padding) / cellHeight;
+	State       *state  = newState(maxX, maxY);
+	Status       status = {
+		      .paused        = false,
+		      .targetFPS     = defaultFPS,
+		      .drawFPS       = false,
+		      .numberOfCells = 0,
+		      .countCells    = false,
+		      .variation     = newVariation(),
+        };
+	Geometry geometry = {
+		.cellWidth  = cellWidth,
+		.cellHeight = cellHeight,
+		.padding    = padding,
+		.fontSize   = padding,
+	};
+	DrawCellMask mask = DrawFill;
 	return (Game){
-		.state = newState(maxX, maxY),
-		.status = {
-			.paused        = false,
-			.targetFPS     = defaultFPS,
-			.drawFPS       = false,
-			.numberOfCells = 0,
-			.countCells    = false,
-			.variation     = newVariation(),
-		},
-		.trail = {
-			.drawTrail  = false,
-			.trailColor = trailColor,
-		},
-		.cell = {
-			.cellColor    = cellColor,
-			.outlineColor = outlineColor,
-			.drawOutline  = false,
-		},
-		.interface = {
-			.backgroundColor = backgroundColor,
-			.paddingColor    = paddingColor,
-			.cursorColor     = cursorColor,
-		},
-		.geometry = {
-			.cellWidth  = cellWidth,
-			.cellHeight = cellHeight,
-			.padding    = padding,
-		},
+		.state    = state,
+		.status   = status,
+		.geometry = geometry,
+		.mask     = mask,
 	};
 }
 
@@ -92,15 +82,15 @@ handleInputStatus(Status *s) {
 }
 
 static void
-handleInputTrailOpts(TrailOpts *t) {
+handleInputDrawCellMask(DrawCellMask *m) {
 	if (IsKeyPressed(KEY_T))
-		t->drawTrail = !t->drawTrail;
-}
-
-static void
-handleInputCellOpts(CellOpts *c) {
+		*m ^= DrawTrail;
 	if (IsKeyPressed(KEY_O))
-		c->drawOutline = !c->drawOutline;
+		*m ^= DrawOutline;
+	if (IsKeyPressed(KEY_G))
+		*m ^= DrawGlow;
+	if (IsKeyPressed(KEY_L))
+		*m ^= DrawFill;
 }
 
 static void
@@ -122,70 +112,81 @@ handleInputDrawing(State *s, Position p) {
 }
 
 static void
-handleInput(Game *game) {
-	handleInputStatus(&game->status);
-	handleInputTrailOpts(&game->trail);
-	handleInputCellOpts(&game->cell);
-	handleInputState(game->state);
-	handleInputDrawing(game->state, cursorPosition());
+handleInput(Game *g) {
+	handleInputStatus(&g->status);
+	handleInputDrawCellMask(&g->mask);
+	handleInputState(g->state);
+	handleInputDrawing(g->state, cursorPosition());
 }
 
 static void
-preDrawGame(const Game *game) {
-	drawBackground(game->state, &game->geometry, &game->interface);
-	if (game->trail.drawTrail) {
-		CellOpts cell  = game->cell;
-		cell.cellColor = game->trail.trailColor;
-		drawActiveCells(game->state, &game->geometry, &cell);
-	}
+preDrawGame(const Game *g) {
+	drawBackground(g->state, &g->geometry, paddingColor, backgroundColor);
+	if (g->mask & DrawTrail)
+		drawActiveCells(g->state, &g->geometry, trailColor, g->mask);
 }
 
 static void
-postDrawGame(const Game *game) {
-	drawActiveCells(game->state, &game->geometry, &game->cell);
-	drawStatus(&game->status, &game->geometry, &game->cell, &game->trail);
-	drawCursor(cursorPosition(), &game->interface, &game->geometry);
+postDrawGame(const Game *g) {
+	drawActiveCells(g->state, &g->geometry, cellColor, g->mask);
+	drawCursor(cursorPosition(), &g->geometry, cursorColor);
+
+	uint16_t o = drawElement(&g->geometry, 0, WHITE, g->status.variation->name);
+	if (g->status.paused)
+		o = drawElement(&g->geometry, o, BEIGE, "PAUSE");
+	if (g->status.drawFPS)
+		o = drawElement(&g->geometry, o, GREEN, "FPS %d/%d", GetFPS(), g->status.targetFPS);
+	if (g->mask & DrawFill)
+		o = drawElement(&g->geometry, o, cellColor, "FILL");
+	if (g->mask & DrawOutline)
+		o = drawElement(&g->geometry, o, GRAY, "OUTLINE");
+	if (g->mask & DrawTrail)
+		o = drawElement(&g->geometry, o, trailColor, "TRAIL");
+	if (g->mask & DrawGlow)
+		o = drawElement(&g->geometry, o, RED, "GLOW");
+	if (g->status.countCells)
+		o = drawElement(&g->geometry, o, LIME, "#CELLS %d", g->status.numberOfCells);
 }
 
 static void
-updateGame(Game *game) {
-	if (!game->status.paused)
-		updateState(game->state, game->status.variation->rule);
-	if (game->status.countCells)
-		game->status.numberOfCells = countCells(game->state);
+updateGame(Game *g) {
+	if (!g->status.paused)
+		updateState(g->state, g->status.variation->rule);
+	if (g->status.countCells)
+		g->status.numberOfCells = countCells(g->state);
 }
 
 static void
-gameLoop(Game *game) {
-	handleInput(game);
+gameLoop(Game *g) {
+	handleInput(g);
 	BeginDrawing();
-	preDrawGame(game);
-	updateGame(game);
-	postDrawGame(game);
+	preDrawGame(g);
+	updateGame(g);
+	postDrawGame(g);
 	EndDrawing();
 }
 
 static void
-init(Game *game) {
+init(Game *g) {
 	InitWindow(screenWidth, screenHeight, gameTitle);
-	SetTargetFPS(game->status.targetFPS);
+	SetTargetFPS(g->status.targetFPS);
 	SetExitKey(KEY_Q);
 	HideCursor();
 }
 
 static void
-quit(Game *game) {
-	freeVariation(game->status.variation);
-	freeState(game->state);
+quit(Game *g) {
+	freeVariation(g->status.variation);
+	freeState(g->state);
 	CloseWindow();
 }
 
 int
 main(void) {
-	Game game = newGame();
-	init(&game);
+	Game g = newGame();
+	init(&g);
 	while (!WindowShouldClose())
-		gameLoop(&game);
-	quit(&game);
+		gameLoop(&g);
+	quit(&g);
 	return 0;
 }

@@ -3,11 +3,14 @@
 #include "aux.h"
 #include "cell.h"
 
+#include <assert.h>
 #include <raylib.h>
+#include <raymath.h>
+#include <stdarg.h>
 #include <stdio.h>
 
 static Rectangle
-cellRectangle(Position p, const GeometryOpts *g) {
+cellRectangle(Position p, const Geometry *g) {
 	return (Rectangle){
 		.x      = g->padding + g->cellWidth * p.x,
 		.y      = g->padding + g->cellHeight * p.y,
@@ -17,7 +20,7 @@ cellRectangle(Position p, const GeometryOpts *g) {
 }
 
 static Rectangle
-fieldRectangle(const State *s, const GeometryOpts *g) {
+fieldRectangle(const State *s, const Geometry *g) {
 	return (Rectangle){
 		.x      = g->padding,
 		.y      = g->padding,
@@ -26,85 +29,66 @@ fieldRectangle(const State *s, const GeometryOpts *g) {
 	};
 }
 
-static void
-drawCell(Position p, Color c, const GeometryOpts *g) {
-	DrawRectangleRec(cellRectangle(p, g), c);
-}
-
-static void
-drawOutline(Position p, Color c, const GeometryOpts *g) {
-	DrawRectangleLinesEx(cellRectangle(p, g), 1, c);
-}
-
 void
-drawActiveCells(const State *s, const GeometryOpts *g, const CellOpts *c) {
+drawActiveCells(const State *s, const Geometry *g, Color fg, DrawCellMask m) {
 	for (size_t x = 0; x < s->x; x++) {
 		for (size_t y = 0; y < s->y; y++) {
-			const Position p = {.x = x, .y = y};
-			if (isActive(getCell(s, p))) {
-				drawCell(p, c->cellColor, g);
-				if (c->drawOutline)
-					drawOutline(p, c->outlineColor, g);
+			const Position pos = {.x = x, .y = y};
+			if (!isActive(getCell(s, pos)))
+				continue;
+			const Rectangle rec = cellRectangle(pos, g);
+			if (m & DrawFill)
+				DrawRectangleRec(rec, fg);
+			if (m & DrawOutline) {
+				Vector3 hsv = ColorToHSV(fg);
+				hsv.z       = Clamp(hsv.z - 0.2, 0, 1);
+				DrawRectangleLinesEx(cellRectangle(pos, g),
+				                     1,
+				                     ColorFromHSV(hsv.x, hsv.y, hsv.z));
 			}
+			if (m & DrawGlow)
+				DrawCircleGradient(rec.x + rec.width / 2,
+				                   rec.y + rec.height / 2,
+				                   (rec.width + rec.height) / 2.0 * 1.5,
+				                   Fade(fg, 1.0 / 3),
+				                   Fade(fg, 0.1 / 3));
 		}
 	}
 }
 
 void
-drawBackground(const State *s, const GeometryOpts *g, const InterfaceOpts *i) {
-	ClearBackground(i->paddingColor);
-	DrawRectangleRec(fieldRectangle(s, g), i->backgroundColor);
+drawBackground(const State *s, const Geometry *g, Color padding, Color bg) {
+	ClearBackground(padding);
+	DrawRectangleRec(fieldRectangle(s, g), bg);
+}
+
+uint16_t
+drawElement(const Geometry *g, uint16_t offset, Color fg, const char *fmt, ...) {
+	va_list ap;
+	int     n;
+
+	va_start(ap, fmt);
+	n = vsnprintf(NULL, 0, fmt, ap);
+	va_end(ap);
+	assert(n >= 0);
+
+	size_t size = n + 1;
+	char  *str  = malloc(size);
+	assert(str);
+
+	va_start(ap, fmt);
+	n = vsnprintf(str, size, fmt, ap);
+	va_end(ap);
+	assert(n >= 0);
+
+	DrawText(str, g->padding + offset, 0, g->fontSize, fg);
+	offset += g->padding + MeasureText(str, g->fontSize);
+
+	free(str);
+	return offset;
 }
 
 void
-drawStatus(const Status *s, const GeometryOpts *g, const CellOpts *c, const TrailOpts *t) {
-	const uint8_t fontSize = g->padding;
-	const uint8_t spacing  = g->padding;
-	uint16_t      offset   = g->padding;
-
-	const char *prefix = "<<<";
-	DrawText(prefix, offset, 0, fontSize, GRAY);
-	offset += spacing + MeasureText(prefix, fontSize);
-
-	const char *rule = s->variation->name;
-	DrawText(rule, offset, 0, fontSize, WHITE);
-	offset += spacing + MeasureText(rule, fontSize);
-
-	if (s->paused) {
-		const char *paused = "PAUSED";
-		DrawText(paused, offset, 0, fontSize, YELLOW);
-		offset += spacing + MeasureText(paused, fontSize);
-	}
-	if (s->drawFPS) {
-		const size_t fpsLen = 32;
-		char         fps[fpsLen];
-		snprintf(fps, fpsLen, "FPS: %d (%d)", GetFPS(), s->targetFPS);
-		DrawText(fps, offset, 0, fontSize, GREEN);
-		offset += spacing + MeasureText(fps, fontSize);
-	}
-	if (c->drawOutline) {
-		const char *outline = "OUTLINE";
-		DrawText(outline, offset, 0, fontSize, c->outlineColor);
-		offset += spacing + MeasureText(outline, fontSize);
-	}
-	if (t->drawTrail) {
-		const char *trail = "TRAIL";
-		DrawText(trail, offset, 0, fontSize, t->trailColor);
-		offset += spacing + MeasureText(trail, fontSize);
-	}
-	if (s->countCells) {
-		const size_t nCellsLen = 32;
-		char         nCells[nCellsLen];
-		snprintf(nCells, nCellsLen, "CELLS: %zu", s->numberOfCells);
-		DrawText(nCells, offset, 0, fontSize, c->cellColor);
-		offset += spacing + MeasureText(nCells, fontSize);
-	}
-
-	const char *suffix = ">>>";
-	DrawText(suffix, offset, 0, fontSize, GRAY);
-}
-
-void
-drawCursor(Position p, const InterfaceOpts *i, const GeometryOpts *g) {
-	DrawRectangleLinesEx(cellRectangle(p, g), 1, i->cursorColor);
+drawCursor(Position p, const Geometry *g, Color fg) {
+	DrawRectangleLinesEx(cellRectangle(p, g), 1, fg);
 }

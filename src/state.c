@@ -36,15 +36,15 @@ getCell(const State *s, Position p) {
 State *
 newState(size_t x, size_t y) {
 	State *s = malloc(sizeof(State));
-	assert(s != NULL);
+	assert(s);
 	s->field = malloc(x * sizeof(Cell *));
-	assert(s->field != NULL);
+	assert(s->field);
 	s->x = x;
 	s->y = y;
 
 	for (size_t i = 0; i < s->x; i++) {
 		s->field[i] = malloc(y * sizeof(Cell));
-		assert(s->field[i] != NULL);
+		assert(s->field[i]);
 		for (size_t j = 0; j < s->y; j++)
 			s->field[i][j] = inactiveCell();
 	}
@@ -105,10 +105,12 @@ permutateState(State *s, size_t permutations) {
 
 void
 randomizeState(State *s) {
-	for (size_t x = 0; x < s->x; x++)
-		for (size_t y = 0; y < s->y; y++)
-			if (randBool())
-				activateCell(s, (Position){.x = x, .y = y});
+	for (size_t x = 0; x < s->x; x++) {
+		for (size_t y = 0; y < s->y; y++) {
+			const Position pos = {.x = x, .y = y};
+			randBool() ? activateCell(s, pos) : disableCell(s, pos);
+		}
+	}
 }
 
 size_t
