@@ -13,36 +13,36 @@
 
 typedef struct {
 	State       *state;
-	Status       status;
+	Variation   *variation;
 	Geometry     geometry;
 	DrawCellMask mask;
+	uint16_t     targetFPS;
+	size_t       numberOfCells;
+	bool         drawFPS;
+	bool         countCells;
+	bool         paused;
 } Game;
 
 Game
 newGame() {
-	const size_t maxX   = (screenWidth - 2 * padding) / cellWidth;
-	const size_t maxY   = (screenHeight - 2 * padding) / cellHeight;
-	State       *state  = newState(maxX, maxY);
-	Status       status = {
-		      .paused        = false,
-		      .targetFPS     = defaultFPS,
-		      .drawFPS       = false,
-		      .numberOfCells = 0,
-		      .countCells    = false,
-		      .variation     = newVariation(),
+	const size_t maxX     = (screenWidth - 2 * padding) / cellWidth;
+	const size_t maxY     = (screenHeight - 2 * padding) / cellHeight;
+	Geometry     geometry = {
+		    .cellWidth  = cellWidth,
+		    .cellHeight = cellHeight,
+		    .padding    = padding,
+		    .fontSize   = padding,
         };
-	Geometry geometry = {
-		.cellWidth  = cellWidth,
-		.cellHeight = cellHeight,
-		.padding    = padding,
-		.fontSize   = padding,
-	};
-	DrawCellMask mask = DrawFill;
 	return (Game){
-		.state    = state,
-		.status   = status,
-		.geometry = geometry,
-		.mask     = mask,
+		.state         = newState(maxX, maxY),
+		.variation     = newVariation(),
+		.geometry      = geometry,
+		.mask          = DrawFill,
+		.targetFPS     = defaultFPS,
+		.numberOfCells = 0,
+		.drawFPS       = false,
+		.countCells    = false,
+		.paused        = false,
 	};
 }
 
@@ -55,29 +55,29 @@ cursorPosition() {
 }
 
 static void
-handleInputStatus(Status *s) {
+handleInputGame(Game *g) {
 	if (IsKeyPressed(KEY_ESCAPE))
-		s->paused = !s->paused;
+		g->paused = !g->paused;
 	if (IsKeyPressed(KEY_F))
-		s->drawFPS = !s->drawFPS;
+		g->drawFPS = !g->drawFPS;
 	if (IsKeyPressed(KEY_C))
-		s->countCells = !s->countCells;
+		g->countCells = !g->countCells;
 	if (IsKeyPressed(KEY_R))
-		s->variation = s->variation->next;
+		g->variation = g->variation->next;
 
 	bool fpsUpdated = false;
 	if (IsKeyPressed(KEY_EQUAL)) {
-		s->targetFPS += deltaFPS;
+		g->targetFPS += deltaFPS;
 		fpsUpdated = true;
 	}
 	if (IsKeyPressed(KEY_MINUS)) {
-		s->targetFPS -= deltaFPS;
+		g->targetFPS -= deltaFPS;
 		fpsUpdated = true;
 	}
 	if (fpsUpdated) {
-		if (s->targetFPS < minFPS)
-			s->targetFPS = minFPS;
-		SetTargetFPS(s->targetFPS);
+		if (g->targetFPS < minFPS)
+			g->targetFPS = minFPS;
+		SetTargetFPS(g->targetFPS);
 	}
 }
 
@@ -113,7 +113,7 @@ handleInputDrawing(State *s, Position p) {
 
 static void
 handleInput(Game *g) {
-	handleInputStatus(&g->status);
+	handleInputGame(g);
 	handleInputDrawCellMask(&g->mask);
 	handleInputState(g->state);
 	handleInputDrawing(g->state, cursorPosition());
@@ -131,11 +131,11 @@ postDrawGame(const Game *g) {
 	drawActiveCells(g->state, &g->geometry, cellColor, g->mask);
 	drawCursor(cursorPosition(), &g->geometry, cursorColor);
 
-	uint16_t o = drawElement(&g->geometry, 0, WHITE, g->status.variation->name);
-	if (g->status.paused)
+	uint16_t o = drawElement(&g->geometry, 0, WHITE, g->variation->name);
+	if (g->paused)
 		o = drawElement(&g->geometry, o, BEIGE, "PAUSE");
-	if (g->status.drawFPS)
-		o = drawElement(&g->geometry, o, GREEN, "FPS %d/%d", GetFPS(), g->status.targetFPS);
+	if (g->drawFPS)
+		o = drawElement(&g->geometry, o, GREEN, "FPS %d/%d", GetFPS(), g->targetFPS);
 	if (g->mask & DrawFill)
 		o = drawElement(&g->geometry, o, cellColor, "FILL");
 	if (g->mask & DrawOutline)
@@ -144,16 +144,16 @@ postDrawGame(const Game *g) {
 		o = drawElement(&g->geometry, o, trailColor, "TRAIL");
 	if (g->mask & DrawGlow)
 		o = drawElement(&g->geometry, o, RED, "GLOW");
-	if (g->status.countCells)
-		o = drawElement(&g->geometry, o, LIME, "#CELLS %d", g->status.numberOfCells);
+	if (g->countCells)
+		o = drawElement(&g->geometry, o, LIME, "#CELLS %d", g->numberOfCells);
 }
 
 static void
 updateGame(Game *g) {
-	if (!g->status.paused)
-		updateState(g->state, g->status.variation->rule);
-	if (g->status.countCells)
-		g->status.numberOfCells = countCells(g->state);
+	if (!g->paused)
+		updateState(g->state, g->variation->rule);
+	if (g->countCells)
+		g->numberOfCells = countCells(g->state);
 }
 
 static void
@@ -169,14 +169,14 @@ gameLoop(Game *g) {
 static void
 init(Game *g) {
 	InitWindow(screenWidth, screenHeight, gameTitle);
-	SetTargetFPS(g->status.targetFPS);
+	SetTargetFPS(g->targetFPS);
 	SetExitKey(KEY_Q);
 	HideCursor();
 }
 
 static void
 quit(Game *g) {
-	freeVariation(g->status.variation);
+	freeVariation(g->variation);
 	freeState(g->state);
 	CloseWindow();
 }

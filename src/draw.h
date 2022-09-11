@@ -14,15 +14,6 @@ typedef struct {
 	uint8_t fontSize;
 } Geometry;
 
-typedef struct {
-	bool       paused;
-	uint16_t   targetFPS;
-	bool       drawFPS;
-	size_t     numberOfCells;
-	bool       countCells;
-	Variation *variation;
-} Status;
-
 typedef uint16_t          DrawCellMask;
 static const DrawCellMask DrawFill    = 1 << 0;
 static const DrawCellMask DrawOutline = 1 << 1;
