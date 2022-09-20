@@ -41,6 +41,7 @@ newState(size_t x, size_t y) {
 	assert(s->field);
 	s->x = x;
 	s->y = y;
+	s->n = 0;
 
 	for (size_t i = 0; i < s->x; i++) {
 		s->field[i] = malloc(y * sizeof(Cell));
@@ -53,6 +54,9 @@ newState(size_t x, size_t y) {
 
 static void
 copyState(State *dst, const State *src) {
+	assert(dst->x == src->x);
+	assert(dst->y == src->y);
+	dst->n = src->n;
 	for (size_t x = 0; x < src->x; x++)
 		for (size_t y = 0; y < src->y; y++)
 			dst->field[x][y] = src->field[x][y];
@@ -68,14 +72,18 @@ freeState(State *s) {
 
 void
 activateCell(State *s, Position p) {
-	if (validPosition(s, p))
-		s->field[p.x][p.y] = activeCell();
+	if (!validPosition(s, p) || isActive(getCell(s, p)))
+		return;
+	s->field[p.x][p.y] = activeCell();
+	s->n++;
 }
 
 void
 disableCell(State *s, Position p) {
-	if (validPosition(s, p))
-		s->field[p.x][p.y] = inactiveCell();
+	if (!validPosition(s, p) || !isActive(getCell(s, p)))
+		return;
+	s->field[p.x][p.y] = inactiveCell();
+	s->n--;
 }
 
 void
@@ -111,16 +119,6 @@ randomizeState(State *s) {
 			randBool() ? activateCell(s, pos) : disableCell(s, pos);
 		}
 	}
-}
-
-size_t
-countCells(const State *s) {
-	size_t c = 0;
-	for (size_t x = 0; x < s->x; x++)
-		for (size_t y = 0; y < s->y; y++)
-			if (isActive(getCell(s, (Position){.x = x, .y = y})))
-				c++;
-	return c;
 }
 
 void

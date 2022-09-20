@@ -10,6 +10,7 @@
 typedef struct {
 	Cell **field;
 	size_t x, y;
+	size_t n;
 } State;
 
 Cell   getCell(const State *s, Position p);
@@ -20,7 +21,6 @@ void   disableCell(State *s, Position p);
 void   updateState(State *s, Rule r);
 void   permutateState(State *s, size_t permutations);
 void   randomizeState(State *s);
-size_t countCells(const State *s);
 void   clearState(State *s);
 
 #endif
