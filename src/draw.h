@@ -4,6 +4,7 @@
 #include "rules.h"
 #include "state.h"
 
+#include <assert.h>
 #include <raylib.h>
 #include <stdint.h>
 
@@ -13,6 +14,8 @@ typedef struct {
 	uint8_t padding;
 	uint8_t fontSize;
 } Geometry;
+
+static_assert(sizeof(Geometry) == 4, "Geometry size is 4 bytes");
 
 typedef uint16_t          DrawCellMask;
 static const DrawCellMask DrawFill    = 1 << 0;

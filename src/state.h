@@ -5,6 +5,7 @@
 #include "cell.h"
 #include "rules.h"
 
+#include <assert.h>
 #include <stddef.h>
 
 typedef struct {
@@ -12,6 +13,8 @@ typedef struct {
 	size_t x, y;
 	size_t n;
 } State;
+
+static_assert(sizeof(State) == 32, "State size is 32 bytes");
 
 Cell   getCell(const State *s, Position p);
 State *newState(size_t x, size_t y);

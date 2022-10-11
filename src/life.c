@@ -21,6 +21,8 @@ typedef struct {
 	bool         paused;
 } Game;
 
+static_assert(sizeof(Game) == 40, "Game size is 40 bytes");
+
 Game
 newGame() {
 	const size_t maxX     = (screenWidth - 2 * padding) / cellWidth;
