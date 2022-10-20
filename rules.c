@@ -1,7 +1,5 @@
 #include "rules.h"
 
-#include "aux.h"
-
 #include <assert.h>
 #include <ctype.h>
 #include <stdio.h>
@@ -24,9 +22,16 @@ static const struct variation variations[] = {
 struct variation
 getVariation(void)
 {
-	static size_t variationChoice = 0;
-	variationChoice %= LENGTH(variations);
-	return variations[variationChoice++];
+	static size_t i = 0;
+	i %= sizeof(variations) / sizeof(variations[0]);
+	return variations[i++];
+}
+
+static uint8_t
+ctoi(char c)
+{
+	assert(c >= '0' && c <= '9');
+	return c - '0';
 }
 
 static void

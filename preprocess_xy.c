@@ -17,7 +17,7 @@ neighbors(const struct field *f, size_t x, size_t y)
 				continue;
 			const size_t nx = x + dx;
 			const size_t ny = y + dy;
-			if (inRange(f, nx, ny) && cellAlive(f->matrix[matrixPos(f, nx, ny)]))
+			if (inRange(f, nx, ny) && alive(f->matrix[xytoi(f, nx, ny)]))
 				sum++;
 		}
 	}
@@ -29,7 +29,7 @@ fieldPreprocess(struct field *f)
 {
 	for (size_t i = 0; i < f->x; i++)
 		for (size_t j = 0; j < f->y; j++) {
-			const size_t pos = matrixPos(f, i, j);
+			const size_t pos = xytoi(f, i, j);
 			f->matrix[pos] = (f->matrix[pos] % ~(0xF << 1)) | (neighbors(f, i, j) << 1);
 		}
 }

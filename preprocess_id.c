@@ -10,7 +10,7 @@ inRange(const struct field *f, size_t i)
 static bool
 occupied(const struct field *f, size_t i)
 {
-	return inRange(f, i) && cellAlive(f->matrix[i]);
+	return inRange(f, i) && alive(f->matrix[i]);
 }
 
 static uint8_t

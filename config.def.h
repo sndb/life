@@ -19,13 +19,12 @@ static const uint16_t	minFPS		= 10;
 
 /* colors */
 static const Color	cellColor	= YELLOW;
-static const Color	trailColor	= BLUE;
 static const Color	outlineColor	= GRAY;
 static const Color	backgroundColor = BLACK;
 static const Color	paddingColor	= DARKGRAY;
 static const Color	cursorColor	= WHITE;
 static const Color	glowColor1	= GOLD;
 static const Color	glowColor2	= ORANGE;
-static const float	glowRadius	= (cellWidth + cellHeight) / 2. * 1.5;
+static const float	glowRadius	= (cellWidth + cellHeight) / 2.0 * 1.5;
 
 #endif

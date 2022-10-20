@@ -15,8 +15,8 @@ struct field {
 
 static_assert(sizeof(struct field) == 16, "16 byte field size");
 
-size_t matrixPos(const struct field *f, size_t x, size_t y);
-bool cellAlive(uint8_t cell);
+size_t xytoi(const struct field *f, size_t x, size_t y);
+bool alive(uint8_t cell);
 struct field *fieldCreate(size_t x, size_t y);
 void fieldCompile(struct field *f, uint32_t rule);
 void fieldPermutate(struct field *f, size_t n);

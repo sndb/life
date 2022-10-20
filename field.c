@@ -1,6 +1,5 @@
 #include "field.h"
 
-#include "aux.h"
 #include "rules.h"
 
 #include <raylib.h>
@@ -8,13 +7,13 @@
 #include <stdlib.h>
 
 size_t
-matrixPos(const struct field *f, size_t x, size_t y)
+xytoi(const struct field *f, size_t x, size_t y)
 {
 	return x + y * f->x;
 }
 
 bool
-cellAlive(uint8_t cell)
+alive(uint8_t cell)
 {
 	return cell & 1;
 }
@@ -33,8 +32,8 @@ fieldCompile(struct field *f, uint32_t rule)
 {
 	for (size_t i = 0; i < f->x; i++) {
 		for (size_t j = 0; j < f->y; j++) {
-			const size_t n = matrixPos(f, i, j);
-			f->matrix[n] = shouldLive(rule, f->matrix[n]);
+			const size_t k = xytoi(f, i, j);
+			f->matrix[k] = shouldLive(rule, f->matrix[k]);
 		}
 	}
 }

@@ -1,6 +1,6 @@
 include config.mk
 
-SRC = aux.c field.c life.c preprocess_id.c rules.c
+SRC = field.c life.c preprocess_id.c rules.c
 OBJ = ${SRC:.c=.o}
 
 all: options life

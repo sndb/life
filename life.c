@@ -1,4 +1,3 @@
-#include "aux.h"
 #include "config.h"
 #include "field.h"
 #include "preprocess.h"
@@ -15,6 +14,10 @@
 #define DRAWGLOW	(1 << 2)
 
 static const char *title = "life";
+
+struct position {
+	size_t x, y;
+};
 
 struct game {
 	struct variation variation;
@@ -89,9 +92,9 @@ processInput(struct game *g)
 	else if (IsKeyPressed(KEY_BACKSPACE))
 		fieldClear(g->field);
 	else if (IsMouseButtonDown(MOUSE_BUTTON_LEFT))
-		g->field->matrix[matrixPos(g->field, p.x, p.y)] = 1;
+		g->field->matrix[xytoi(g->field, p.x, p.y)] = 1;
 	else if (IsMouseButtonDown(MOUSE_BUTTON_RIGHT))
-		g->field->matrix[matrixPos(g->field, p.x, p.y)] = 0;
+		g->field->matrix[xytoi(g->field, p.x, p.y)] = 0;
 }
 
 static Rectangle
