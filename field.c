@@ -2,7 +2,6 @@
 
 #include "rules.h"
 
-#include <raylib.h>
 #include <stdbool.h>
 #include <stdlib.h>
 
@@ -42,7 +41,7 @@ void
 fieldPermutate(struct field *f, size_t n)
 {
 	for (size_t i = 0; i < n; i++)
-		f->matrix[GetRandomValue(0, f->x * f->y - 1)] = 1;
+		f->matrix[rand() % (f->x * f->y)] = 1;
 }
 
 void
