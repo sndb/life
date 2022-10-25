@@ -1,0 +1,22 @@
+life
+====
+A simple implementation of Conway's Game of Life.
+
+Requirements
+------------
+In order to build life you need raylib library.
+
+Installation
+------------
+Edit config.mk to match your local setup (life is installed into the
+/usr/local namespace by default).
+
+Afterwards enter the following command to build and install life (if
+necessary as root):
+
+    make clean install
+
+Configuration
+-------------
+The configuration of life is done by creating a custom config.h and
+(re)compiling the source code.

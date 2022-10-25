@@ -25,4 +25,12 @@ life: ${OBJ}
 clean:
 	rm -f life ${OBJ}
 
-.PHONY: all options clean
+install: all
+	mkdir -p ${DESTDIR}${PREFIX}/bin
+	cp -f life ${DESTDIR}${PREFIX}/bin
+	chmod 755 ${DESTDIR}${PREFIX}/bin/life
+
+uninstall:
+	rm -f ${DESTDIR}${PREFIX}/bin/life
+
+.PHONY: all options clean install uninstall
